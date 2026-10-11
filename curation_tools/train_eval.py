@@ -106,52 +106,100 @@ def _early(r: dict, config: dict) -> dict | None:
     return (r.get("by_epoch") or {}).get(str(ep)) if ep else None
 
 
-def compare(plan: dict, results: dict) -> dict:
-    sets = results["sets"]
+def runs_by_set(results: dict, seeds: dict | None = None) -> dict[str, list[dict]]:
+    """묶음별 학습 결과 목록. 시드 1(results.json)과 추가 시드(results_seeds.json의 runs)를 합친다."""
+    base_seed = results.get("config", {}).get("seed", 1)
+    out: dict[str, list[dict]] = {k: [{**v, "seed": base_seed}] for k, v in results["sets"].items()}
+    for r in (seeds or {}).get("runs", {}).values():
+        if all(x["seed"] != r["seed"] for x in out.get(r["set"], [])):
+            out.setdefault(r["set"], []).append(r)
+    return {k: sorted(v, key=lambda x: x["seed"]) for k, v in out.items()}
+
+
+def _pool(runs: list[dict], early_epoch: int | None = None) -> dict | None:
+    """여러 시드의 롤아웃을 합친다. early_epoch를 주면 그 epoch의 중간 평가를 합친다."""
+    rows = [(r.get("by_epoch") or {}).get(str(early_epoch)) for r in runs] if early_epoch else runs
+    if not rows or any(x is None for x in rows):
+        return None
+    return {"success": sum(x["success"] for x in rows), "rollouts": sum(x["rollouts"] for x in rows),
+            "per_seed": {r["seed"]: x["success"] / x["rollouts"] for r, x in zip(runs, rows)}}
+
+
+def diff_runs(a: dict, b: dict) -> dict:
+    """a - b 비교. 롤아웃을 합친 차이의 95% 신뢰구간에 더해, 시드가 여러 개면 시드마다 차이를 본다.
+    시드 여러 개일 때 "차이 있음"은 신뢰구간이 0을 넘고 같은 시드끼리 비교해 모든 시드에서 같은 방향일 때만이다
+    (롤아웃 신뢰구간에는 시드 사이 흔들림이 빠져 있어서, 한 시드에서만 크게 이긴 경우를 걸러낸다)."""
+    d = diff(a, b)
+    common = sorted(set(a["per_seed"]) & set(b["per_seed"]))
+    d["n_seeds"] = len(common)
+    if len(common) >= 2:
+        per = [round(a["per_seed"][s] - b["per_seed"][s], 4) for s in common]
+        d["per_seed_diff"] = dict(zip(common, per))
+        if d["verdict"] == "차이 있음 (높음)" and not all(x > 0 for x in per):
+            d["verdict"], d["note"] = "구분 불가", "신뢰구간은 0보다 크지만 시드마다 방향이 다름"
+        if d["verdict"] == "더 나쁨" and not all(x < 0 for x in per):
+            d["verdict"], d["note"] = "구분 불가", "신뢰구간은 0보다 작지만 시드마다 방향이 다름"
+    return d
+
+
+def compare(plan: dict, results: dict, seeds: dict | None = None) -> dict:
+    runs = runs_by_set(results, seeds)
+    ep = plan["config"].get("early_eval_epoch")
+    pooled = {k: _pool(v) for k, v in runs.items()}
+    early = {k: _pool(v, ep) for k, v in runs.items()} if ep else {}
     table = []
     for name in plan["order"]:
-        r = sets.get(name)
         row = {"set": name, "n_demos": len(plan["sets"][name])}
-        if r:
-            row.update({"success": r["success"], "rollouts": r["rollouts"],
-                        "success_rate": round(r["success"] / r["rollouts"], 4),
-                        "ci95": wilson(r["success"], r["rollouts"]),
-                        "train_min": round(r.get("train_sec", 0) / 60, 1)})
-            early = _early(r, plan["config"])
-            if early:
-                row["early"] = {"epoch": plan["config"]["early_eval_epoch"], "success": early["success"],
-                                "rollouts": early["rollouts"], "success_rate": round(early["success"] / early["rollouts"], 4)}
+        if name in runs:
+            p, rs = pooled[name], runs[name]
+            rates = [r["success"] / r["rollouts"] for r in rs]
+            row.update({"n_seeds": len(rs), "success": p["success"], "rollouts": p["rollouts"],
+                        "success_rate": round(p["success"] / p["rollouts"], 4),
+                        "ci95": wilson(p["success"], p["rollouts"]),
+                        "per_seed": [{"seed": r["seed"], "success": r["success"], "rollouts": r["rollouts"]} for r in rs],
+                        "train_min": round(sum(r.get("train_sec", 0) for r in rs) / len(rs) / 60, 1)})
+            if len(rs) > 1:
+                row["seed_range"] = [round(min(rates), 4), round(max(rates), 4)]
+            if early.get(name):
+                e = early[name]
+                row["early"] = {"epoch": ep, "success": e["success"], "rollouts": e["rollouts"],
+                                "success_rate": round(e["success"] / e["rollouts"], 4)}
         else:
             row["status"] = "결과 없음"
         table.append(row)
-    cur = next((n for n in sets if n.startswith("curated")), None)
-    rnd = next((n for n in sets if n.startswith("random_") and n != "random_frames"), None)
-    strat = next((n for n in sets if n.startswith("stratified")), None)
+    cur = next((n for n in runs if n.startswith("curated")), None)
+    rnd = next((n for n in runs if n.startswith("random_") and n != "random_frames"), None)
+    strat = next((n for n in runs if n.startswith("stratified")), None)
     judge = {}
-    train = sets.get("train")
+    train = pooled.get("train")
     if train and train["success"] / train["rollouts"] < MIN_TRAIN_SUCCESS:
         judge["validity"] = f"판정 불가: 전체 데이터 기준선 성공률이 {MIN_TRAIN_SUCCESS:.0%} 미만 (학습 설정 문제)"
     if cur and rnd:
-        d = diff(sets[cur], sets[rnd])
+        d = diff_runs(pooled[cur], pooled[rnd])
         judge["gain_vs_random"] = {**d, "target": TARGET_GAIN, "meets_target_point": d["diff"] >= TARGET_GAIN,
                                    "question": f"{cur}가 {rnd}보다 {TARGET_GAIN:.0%}p 이상 높은가"}
     if cur and train:
-        d = diff(sets["train"], sets[cur])
+        d = diff_runs(train, pooled[cur])
         judge["drop_vs_full"] = {**d, "target": MAX_DROP, "meets_target_point": d["diff"] <= MAX_DROP,
                                  "confirmed": d["ci95"][1] <= MAX_DROP,
                                  "question": f"전체 대비 {cur}의 하락이 {MAX_DROP:.0%}p 이내인가"}
     if strat and rnd:
-        judge["effect_allocation"] = {**diff(sets[strat], sets[rnd]), "question": "칸별 배분의 효과 (조건별 균등 - 무작위)"}
+        judge["effect_allocation"] = {**diff_runs(pooled[strat], pooled[rnd]), "question": "칸별 배분의 효과 (조건별 균등 - 무작위)"}
     if cur and strat:
-        judge["effect_quality"] = {**diff(sets[cur], sets[strat]), "question": "품질 점수의 효과 (선별 - 조건별 균등)"}
-    if cur and rnd and _early(sets[cur], plan["config"]) and _early(sets[rnd], plan["config"]):
-        judge["early_gain_vs_random"] = {**diff(_early(sets[cur], plan["config"]), _early(sets[rnd], plan["config"])),
-                                         "question": f"{plan['config']['early_eval_epoch']} epoch 시점(학습 속도): {cur} - {rnd}"}
-    if cur and "random_frames" in sets:
-        judge["same_frames"] = {**diff(sets[cur], sets["random_frames"]), "question": "같은 프레임 수에서 (선별 - 프레임 맞춘 무작위)"}
-    seeds = results.get("config", {}).get("n_seeds", 1)
-    return {"table": table, "judgement": judge,
-            "label": "예비 결과 (시드 1개, 롤아웃 기준 95% 신뢰구간)" if seeds == 1 else f"시드 {seeds}개"}
+        judge["effect_quality"] = {**diff_runs(pooled[cur], pooled[strat]), "question": "품질 점수의 효과 (선별 - 조건별 균등)"}
+    if cur and rnd and early.get(cur) and early.get(rnd):
+        judge["early_gain_vs_random"] = {**diff_runs(early[cur], early[rnd]),
+                                         "question": f"{ep} epoch 시점(학습 속도): {cur} - {rnd}"}
+    if cur and "random_frames" in runs:
+        judge["same_frames"] = {**diff_runs(pooled[cur], pooled["random_frames"]), "question": "같은 프레임 수에서 (선별 - 프레임 맞춘 무작위)"}
+    n = sorted({len(v) for v in runs.values()})
+    if n == [1]:
+        label = "예비 결과 (시드 1개, 롤아웃 기준 95% 신뢰구간)"
+    elif len(n) == 1:
+        label = f"시드 {n[0]}개 (롤아웃을 합친 95% 신뢰구간 + 모든 시드에서 같은 방향일 때만 차이 있음)"
+    else:
+        label = f"묶음마다 시드 수가 다름 ({n[0]}~{n[-1]}개, 판정별 n_seeds 확인). 시드 1개인 비교는 예비 결과"
+    return {"table": table, "judgement": judge, "label": label}
 
 
 def collect(run_dir: Path) -> dict:
@@ -173,10 +221,19 @@ def collect(run_dir: Path) -> dict:
     unknown = set(results["sets"]) - set(plan["sets"])
     if unknown:
         raise ValueError(f"계획에 없는 묶음 결과: {sorted(unknown)}")
+    seeds = None
+    for f in (run_dir / "results" / "results_seeds.json", RESULTS_STORE / f"{plan['fingerprint']}_seeds.json"):
+        if f.exists():
+            seeds = json.loads(f.read_text(encoding="utf-8"))
+            break
+    if seeds and seeds.get("fingerprint") != plan["fingerprint"]:
+        raise ValueError("추가 시드 결과의 지문이 학습 계획과 다르다")
     out = {"run_id": plan["run_id"], "fingerprint": plan["fingerprint"],
            "status": "complete" if set(results["sets"]) == set(plan["sets"]) else "partial",
            "reused": reused, "trained_at": results.get("finished_at") or results.get("created_at"),
-           "config": results.get("config", plan["config"]), **compare(plan, results)}
+           "config": results.get("config", plan["config"]), **compare(plan, results, seeds)}
+    if seeds:
+        out["seeds_trained_at"] = max((r.get("finished_at", "") for r in seeds["runs"].values()), default=None)
     if reused:
         out["note"] = "같은 선별 결과·설정으로 미리 실행한 학습 결과를 불러왔다"
     return out
@@ -198,6 +255,30 @@ def save_results(results_path: Path, runs_root: Path) -> Path:
     return dst
 
 
+def save_seed_results(seeds_path: Path, runs_root: Path) -> Path:
+    """Kaggle 추가 시드 결과(results_seeds.json)를 실행 폴더와 지문 저장소에 저장한다.
+    시드 1과 같은 학습 계획(지문)이어야 하고, 학습 설정은 시드만 달라야 한다."""
+    seeds = json.loads(Path(seeds_path).read_text(encoding="utf-8"))
+    run_dir = runs_root / seeds["run_id"]
+    plan = json.loads((run_dir / "plan" / "plan.json").read_text(encoding="utf-8"))
+    if seeds.get("mode") != "seeds":
+        raise ValueError("시험 실행(smoke) 결과는 비교표에 쓰지 않는다 (mode가 seeds가 아님)")
+    if seeds["fingerprint"] != plan["fingerprint"]:
+        raise ValueError("추가 시드 결과의 지문이 학습 계획과 다르다")
+    if {k: v for k, v in seeds["config"].items() if k != "seed"} != {k: v for k, v in plan["config"].items() if k != "seed"}:
+        raise ValueError("추가 시드의 학습 설정이 계획과 다르다 (시드 외 설정은 같아야 함)")
+    bad = [k for k, r in seeds["runs"].items() if r["set"] not in plan["sets"] or r["seed"] == plan["config"].get("seed", 1)]
+    if bad:
+        raise ValueError(f"계획에 없는 묶음이거나 시드 1과 겹치는 실행: {bad}")
+    (run_dir / "results").mkdir(exist_ok=True)
+    dst = run_dir / "results" / "results_seeds.json"
+    body = json.dumps(seeds, ensure_ascii=False, indent=1)
+    dst.write_text(body, encoding="utf-8")
+    RESULTS_STORE.mkdir(parents=True, exist_ok=True)
+    (RESULTS_STORE / f"{plan['fingerprint']}_seeds.json").write_text(body, encoding="utf-8")
+    return dst
+
+
 def store_results(results_path: Path) -> Path:
     """코랩에서 받은 results.json을 지문 저장소에 등록한다 (다음 대화에서 재사용)."""
     results = json.loads(Path(results_path).read_text(encoding="utf-8"))
@@ -210,10 +291,13 @@ def store_results(results_path: Path) -> Path:
 def main() -> None:
     import argparse
     p = argparse.ArgumentParser(description="코랩 학습 결과를 저장하고 비교표를 출력한다")
-    p.add_argument("--save", type=Path, required=True, help="코랩 RESULTS_JSON을 저장한 파일")
+    p.add_argument("--save", type=Path, help="코랩 RESULTS_JSON을 저장한 파일 (시드 1)")
+    p.add_argument("--save-seeds", type=Path, help="Kaggle 추가 시드 결과 results_seeds.json")
     p.add_argument("--runs-root", type=Path, default=Path("C:/curation-data/runs"))
     a = p.parse_args()
-    dst = save_results(a.save, a.runs_root)
+    if not (a.save or a.save_seeds):
+        p.error("--save 또는 --save-seeds 중 하나는 필요하다")
+    dst = save_results(a.save, a.runs_root) if a.save else save_seed_results(a.save_seeds, a.runs_root)
     out = collect(dst.parent.parent)
     print(json.dumps({k: out[k] for k in ("status", "label", "table", "judgement")}, ensure_ascii=False, indent=1))
 
