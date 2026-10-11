@@ -1,0 +1,103 @@
+{
+ "fingerprint": "c15466d53a01cedb",
+ "run_id": "R-20261011-select-main",
+ "mode": "main",
+ "config": {
+  "algo": "bc_rnn",
+  "num_epochs": 400,
+  "steps_per_epoch": 100,
+  "batch_size": 100,
+  "seed": 1,
+  "rollout_n": 50,
+  "rollout_horizon": 400,
+  "early_eval_epoch": 200,
+  "early_eval_n": 30,
+  "n_seeds": 1
+ },
+ "gpu": "Tesla T4",
+ "eval_seed": 12345,
+ "finished_at": "2026-10-12T00:20:00",
+ "note": "코랩 출력 창 미표시로 변수 패널 값을 전사",
+ "sets": {
+  "curated_150": {
+   "success": 47,
+   "rollouts": 50,
+   "train_sec": 627,
+   "eval_sec": 625,
+   "by_epoch": {
+    "200": {
+     "success": 22,
+     "rollouts": 30
+    },
+    "400": {
+     "success": 47,
+     "rollouts": 50
+    }
+   }
+  },
+  "random_150": {
+   "success": 40,
+   "rollouts": 50,
+   "train_sec": 608,
+   "eval_sec": 803,
+   "by_epoch": {
+    "200": {
+     "success": 9,
+     "rollouts": 30
+    },
+    "400": {
+     "success": 40,
+     "rollouts": 50
+    }
+   }
+  },
+  "stratified_random_150": {
+   "success": 44,
+   "rollouts": 50,
+   "train_sec": 598,
+   "eval_sec": 718,
+   "by_epoch": {
+    "200": {
+     "success": 19,
+     "rollouts": 30
+    },
+    "400": {
+     "success": 44,
+     "rollouts": 50
+    }
+   }
+  },
+  "random_frames": {
+   "success": 39,
+   "rollouts": 50,
+   "train_sec": 594,
+   "eval_sec": 766,
+   "by_epoch": {
+    "200": {
+     "success": 9,
+     "rollouts": 30
+    },
+    "400": {
+     "success": 39,
+     "rollouts": 50
+    }
+   }
+  },
+  "train": {
+   "success": 48,
+   "rollouts": 50,
+   "train_sec": 601,
+   "eval_sec": 740,
+   "by_epoch": {
+    "200": {
+     "success": 21,
+     "rollouts": 30
+    },
+    "400": {
+     "success": 48,
+     "rollouts": 50
+    }
+   }
+  }
+ }
+}

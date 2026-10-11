@@ -1,4 +1,4 @@
-"""curation-tools MCP 서버: analyze_data, select_demos, review_selection, log_event를 Dify 같은 MCP 클라이언트에 도구로 제공한다.
+"""curation-tools MCP 서버: analyze_data, select_demos, review_selection, train_evaluate, log_event를 Dify 같은 MCP 클라이언트에 도구로 제공한다.
 
 - 주소: http://127.0.0.1:8800/mcp (Dify 컨테이너에서는 http://host.docker.internal:8800/mcp)
 - 도구 인자는 LLM이 정하므로 파일 경로를 직접 받지 않는다. 데이터는 이름(DATASETS)으로만 고르고,
@@ -24,6 +24,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from curation_tools import analyze as A
 from curation_tools import review as R
 from curation_tools import select_demos as S
+from curation_tools import train_eval as T
 
 HOST, PORT = "127.0.0.1", 8800
 DATASETS = {"can_mh": Path("C:/curation-data/raw/can_mh_low_dim.hdf5")}
@@ -182,6 +183,50 @@ def review_selection(session_id: str | None = None, run_id: str | None = None) -
         return result
 
     return _traced("review_selection", {"run_id": run_id}, session_id, work)
+
+
+def _latest_in_session(session_id: str, event: str, key: str, verdict: str | None = None) -> str | None:
+    if not EVENTS_PATH.exists():
+        return None
+    found = None
+    for line in EVENTS_PATH.read_text(encoding="utf-8").splitlines():
+        e = json.loads(line)
+        if e.get("session_id") == session_id and e.get("event") == event and (verdict is None or e.get("verdict") == verdict):
+            found = e.get(key) or found
+    return found
+
+
+@mcp.tool()
+def train_evaluate(stage: str, run_id: str | None = None, session_id: str | None = None) -> dict[str, Any]:
+    """학습·평가 단계. 학습 자체는 코랩에서 돌고, 이 도구는 계획을 만들거나 결과를 모은다.
+
+    stage: "prepare" = 사람이 승인한 선별 결과로 학습 계획(묶음 5개, 같은 설정)을 만든다.
+           "collect" = 코랩 학습 결과를 읽어 묶음별 성공률 비교표와 1주차 성공 기준 판정을 돌려준다.
+    run_id: 선별 결과의 run_id (선택). 없으면 이 대화의 최근 결과를 쓴다
+            (prepare는 검수 pass를 받은 최근 선별, collect는 최근에 준비한 계획).
+    session_id: 대화 ID.
+    학습 설정(알고리즘, epoch, 롤아웃 횟수)은 파일럿으로 정한 값으로 고정되어 있어 바꿀 수 없다.
+    """
+    _check_session(session_id)
+    if stage not in ("prepare", "collect"):
+        raise ValueError('stage는 "prepare" 또는 "collect"')
+
+    def work() -> dict:
+        target = run_id
+        if target is None and session_id:
+            target = (_latest_in_session(session_id, "review", "reviewed_run_id", "pass") if stage == "prepare"
+                      else _latest_in_session(session_id, "prepared", "run_id"))
+        if target is None:
+            return {"status": "no_target", "detail": "이 대화에서 대상 선별 결과(또는 학습 계획)를 찾지 못함"}
+        run_dir = _run_dir(target)
+        if stage == "prepare":
+            out = T.prepare(run_dir, RUNS_ROOT)
+            write_event({"session_id": session_id, "tool": "train_evaluate", "event": "prepared",
+                         "run_id": target, "fingerprint": out["fingerprint"]})
+            return out
+        return T.collect(run_dir)
+
+    return _traced(f"train_evaluate.{stage}", {"run_id": run_id}, session_id, work)
 
 
 @mcp.tool()

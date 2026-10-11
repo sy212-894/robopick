@@ -76,3 +76,18 @@ def test_outputs(tmp_path, analysis):
         assert len(f["mask/train"]) == 270  # 원래 필터 키는 그대로
     with h5py.File(DATA, "r") as f:
         assert "mask/curated_150" not in f  # 원본은 건드리지 않는다
+
+
+def test_stratified_baseline(result, analysis):
+    # 조건별 균등 기준선: 칸별 개수는 curated와 같고, 칸 안에서는 무작위라 구성은 달라야 한다
+    by_id = {d["id"]: d for d in analysis["demos"]}
+    strat = result["sets"]["stratified_random_150"]["ids"]
+    per = {}
+    for i in strat:
+        per[by_id[i]["condition"]] = per.get(by_id[i]["condition"], 0) + 1
+    assert per == {a["condition"]: a["selected"] for a in result["allocation"]}
+    assert len(set(strat)) == 150 and all(by_id[i]["split"] == "train" for i in strat)
+    assert set(strat) != set(result["selected_ids"])
+    # 기존 기준선은 바뀌지 않는다 (2단계 결과와 같음)
+    assert result["sets"]["random_150"]["total_frames"] == 31406
+    assert result["sets"]["random_frames"]["total_frames"] == 21500

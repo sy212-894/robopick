@@ -17,8 +17,7 @@ import json
 from pathlib import Path
 
 from curation_tools.select_demos import FRAME_TOLERANCE
-
-MINUTES_PER_SET = 30  # 0단계 코랩 측정 기반 추정 (학습 20분 + 롤아웃 50회 10분), 미확정
+from curation_tools.train_eval import MINUTES_PER_SET, TRAIN_CONFIG
 
 
 def review(run_dir: Path, runs_root: Path) -> dict:
@@ -50,6 +49,23 @@ def review(run_dir: Path, runs_root: Path) -> dict:
     rf = sel["sets"].get("random_frames", {}).get("total_frames")
     if rf is not None and abs(rf - frames) > frames * FRAME_TOLERANCE:
         issues.append({"check": "frame_match", "detail": f"random_frames {rf} vs 선택 {frames}"})
+    # 기준선 묶음도 학습 비교에 쓰이므로 중복과 평가 누수를 같이 검사한다
+    for name, s in sel["sets"].items():
+        bids = s.get("ids", [])
+        if len(set(bids)) != len(bids):
+            issues.append({"check": "duplicate", "detail": f"{name}: 중복 {len(bids) - len(set(bids))}개"})
+        bad = [i for i in bids if demos.get(i, {}).get("split") != "train"]
+        if bad:
+            issues.append({"check": "eval_leak", "detail": f"{name}: train이 아닌 시범 {len(bad)}개"})
+    strat = next((s for k, s in sel["sets"].items() if k.startswith("stratified_random")), None)
+    if strat is not None:
+        per = {}
+        for i in strat["ids"]:
+            c = demos.get(i, {}).get("condition")
+            per[c] = per.get(c, 0) + 1
+        want = {a["condition"]: a["selected"] for a in sel["allocation"]}
+        if per != want:
+            issues.append({"check": "stratified", "detail": "조건별 균등 기준선의 칸별 개수가 선택 결과와 다름"})
     if not (run_dir / "can_mh_curated.hdf5").exists():
         issues.append({"check": "filter_keys", "detail": "필터 키 복사본 없음"})
 
@@ -66,5 +82,5 @@ def review(run_dir: Path, runs_root: Path) -> dict:
         "sets": sets,
         "training_plan": {"filter_keys": plan_sets, "n_sets": len(plan_sets),
                           "est_minutes": len(plan_sets) * MINUTES_PER_SET,
-                          "note": "코랩 T4 기준 추정(묶음당 약 30분), 시드 1개"},
+                          "note": f"코랩 T4 본 실험 측정 기준(묶음당 약 {MINUTES_PER_SET}분), {TRAIN_CONFIG['algo'].upper()} {TRAIN_CONFIG['num_epochs']} epoch, 시드 1개"},
     }
