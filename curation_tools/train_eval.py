@@ -15,10 +15,11 @@ from pathlib import Path
 
 RESULTS_STORE = Path("C:/curation-data/results_store")  # 지문별 학습 결과 (재사용용)
 DATASET = {"name": "can_mh", "hf_repo": "robomimic/robomimic_datasets", "hf_path": "v1.5/can/mh/low_dim_v15.hdf5"}
-# 파일럿(5-4) 결과로 확정한다. LLM이 바꾸지 못하도록 도구 인자로 받지 않는다
-TRAIN_CONFIG = {"algo": "bc", "num_epochs": 200, "steps_per_epoch": 100, "batch_size": 100,
-                "seed": 1, "rollout_n": 50, "rollout_horizon": 400}
-MINUTES_PER_SET = 30  # 파일럿 측정 후 갱신
+# 파일럿(5-4, 2026-10-11) 결과로 확정: BC는 전체 데이터로도 20% 안팎(바닥), BC-RNN은 400 epoch에서 전체 10/10, 무작위 150 8/10.
+# 200 epoch 시점 차이가 가장 커서(7/10 vs 3/10) 학습 속도 비교용 중간 평가를 둔다. LLM이 바꾸지 못하도록 도구 인자로 받지 않는다
+TRAIN_CONFIG = {"algo": "bc_rnn", "num_epochs": 400, "steps_per_epoch": 100, "batch_size": 100,
+                "seed": 1, "rollout_n": 50, "rollout_horizon": 400, "early_eval_epoch": 200, "early_eval_n": 30}
+MINUTES_PER_SET = 28  # 파일럿 측정: BC-RNN 학습 약 14분 + 평가(30회 + 50회) 약 14분
 TARGET_GAIN = 0.05     # 1주차: 같은 개수 무작위보다 +5%p
 MAX_DROP = 0.05        # 1주차: 전체 데이터 대비 하락 5%p 이내
 MIN_TRAIN_SUCCESS = 0.2  # 전체 데이터 기준선이 이보다 낮으면 판정 불가 (학습 자체가 실패)
@@ -99,6 +100,12 @@ def diff(a: dict, b: dict, z: float = 1.96) -> dict:
     return {"diff": round(d, 4), "ci95": [round(lo, 4), round(hi, 4)], "verdict": verdict}
 
 
+def _early(r: dict, config: dict) -> dict | None:
+    """중간 평가(학습 속도) 결과. 없으면 None."""
+    ep = config.get("early_eval_epoch")
+    return (r.get("by_epoch") or {}).get(str(ep)) if ep else None
+
+
 def compare(plan: dict, results: dict) -> dict:
     sets = results["sets"]
     table = []
@@ -110,6 +117,10 @@ def compare(plan: dict, results: dict) -> dict:
                         "success_rate": round(r["success"] / r["rollouts"], 4),
                         "ci95": wilson(r["success"], r["rollouts"]),
                         "train_min": round(r.get("train_sec", 0) / 60, 1)})
+            early = _early(r, plan["config"])
+            if early:
+                row["early"] = {"epoch": plan["config"]["early_eval_epoch"], "success": early["success"],
+                                "rollouts": early["rollouts"], "success_rate": round(early["success"] / early["rollouts"], 4)}
         else:
             row["status"] = "결과 없음"
         table.append(row)
@@ -133,6 +144,9 @@ def compare(plan: dict, results: dict) -> dict:
         judge["effect_allocation"] = {**diff(sets[strat], sets[rnd]), "question": "칸별 배분의 효과 (조건별 균등 - 무작위)"}
     if cur and strat:
         judge["effect_quality"] = {**diff(sets[cur], sets[strat]), "question": "품질 점수의 효과 (선별 - 조건별 균등)"}
+    if cur and rnd and _early(sets[cur], plan["config"]) and _early(sets[rnd], plan["config"]):
+        judge["early_gain_vs_random"] = {**diff(_early(sets[cur], plan["config"]), _early(sets[rnd], plan["config"])),
+                                         "question": f"{plan['config']['early_eval_epoch']} epoch 시점(학습 속도): {cur} - {rnd}"}
     if cur and "random_frames" in sets:
         judge["same_frames"] = {**diff(sets[cur], sets["random_frames"]), "question": "같은 프레임 수에서 (선별 - 프레임 맞춘 무작위)"}
     seeds = results.get("config", {}).get("n_seeds", 1)
@@ -168,6 +182,22 @@ def collect(run_dir: Path) -> dict:
     return out
 
 
+def save_results(results_path: Path, runs_root: Path) -> Path:
+    """코랩 RESULTS_JSON 파일을 해당 실행 폴더(results/results.json)와 지문 저장소에 함께 저장한다."""
+    results = json.loads(Path(results_path).read_text(encoding="utf-8"))
+    run_dir = runs_root / results["run_id"]
+    plan = json.loads((run_dir / "plan" / "plan.json").read_text(encoding="utf-8"))
+    if results.get("mode") != "main":
+        raise ValueError("파일럿 결과는 비교표에 쓰지 않는다 (mode가 main이 아님)")
+    if results["fingerprint"] != plan["fingerprint"]:
+        raise ValueError("결과 지문이 학습 계획과 다르다")
+    (run_dir / "results").mkdir(exist_ok=True)
+    dst = run_dir / "results" / "results.json"
+    dst.write_text(json.dumps(results, ensure_ascii=False, indent=1), encoding="utf-8")
+    store_results(dst)
+    return dst
+
+
 def store_results(results_path: Path) -> Path:
     """코랩에서 받은 results.json을 지문 저장소에 등록한다 (다음 대화에서 재사용)."""
     results = json.loads(Path(results_path).read_text(encoding="utf-8"))
@@ -175,3 +205,18 @@ def store_results(results_path: Path) -> Path:
     dst = RESULTS_STORE / f"{results['fingerprint']}.json"
     dst.write_text(json.dumps(results, ensure_ascii=False, indent=1), encoding="utf-8")
     return dst
+
+
+def main() -> None:
+    import argparse
+    p = argparse.ArgumentParser(description="코랩 학습 결과를 저장하고 비교표를 출력한다")
+    p.add_argument("--save", type=Path, required=True, help="코랩 RESULTS_JSON을 저장한 파일")
+    p.add_argument("--runs-root", type=Path, default=Path("C:/curation-data/runs"))
+    a = p.parse_args()
+    dst = save_results(a.save, a.runs_root)
+    out = collect(dst.parent.parent)
+    print(json.dumps({k: out[k] for k in ("status", "label", "table", "judgement")}, ensure_ascii=False, indent=1))
+
+
+if __name__ == "__main__":
+    main()

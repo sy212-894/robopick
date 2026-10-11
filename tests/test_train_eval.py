@@ -101,3 +101,14 @@ def test_reuse_and_validity(isolated, tmp_path):
     (runs / "R-s1" / "results" / "results.json").write_text(json.dumps(wrong), encoding="utf-8")
     with pytest.raises(ValueError):
         T.collect(runs / "R-s1")
+
+
+def test_early_eval_judgement():
+    plan = {"order": ["curated_150", "random_150"], "sets": {"curated_150": ["demo_1"] * 150, "random_150": ["demo_2"] * 150},
+            "config": {"early_eval_epoch": 200}}
+    res = {"sets": {"curated_150": {"success": 45, "rollouts": 50, "by_epoch": {"200": {"success": 21, "rollouts": 30}}},
+                    "random_150": {"success": 40, "rollouts": 50, "by_epoch": {"200": {"success": 9, "rollouts": 30}}}}}
+    out = T.compare(plan, res)
+    assert out["judgement"]["early_gain_vs_random"]["verdict"] == "차이 있음 (높음)"  # 70% vs 30%
+    assert out["judgement"]["gain_vs_random"]["verdict"] == "구분 불가"              # 90% vs 80%
+    assert out["table"][0]["early"]["success_rate"] == 0.7
