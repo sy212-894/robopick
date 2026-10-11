@@ -10,12 +10,14 @@ h1{font-size:22px;margin:0 0 4px}.sub{color:#64748b;font-size:13px;margin-bottom
 .done .badge{background:#dcfce7;color:#166534}.doing .badge{background:#fef3c7;color:#92400e}.todo .badge{background:#f1f5f9}.wait .badge{background:#dbeafe;color:#1e40af}
 .d{font-size:13px;margin-top:6px;color:#334155;white-space:pre-line}
 </style></head><body>
-<h1>2단계: select_demos — 완료</h1><div class="sub">5초마다 자동 새로고침 · 0단계, 1단계 완료 · 결과 문서 docs/02_select_demos.md</div>
+<h1>3단계: MCP 도구 서버 curation-tools — PR 확인 대기</h1><div class="sub">5초마다 자동 새로고침 · 브랜치 feat/mcp-server · 결과 문서 docs/03_mcp_server.md</div>
 
-<div class="step done"><span class="t">2-1. 후보 범위 정하기 (train 270개, valid 30개 제외)</span><span class="badge">완료</span><div class="d">worse / okay / better 90개씩 · 56,186 프레임</div></div>
-<div class="step done"><span class="t">2-2. 품질 점수 계산 (라벨 없이, 신호 4개 순위 평균)</span><span class="badge">완료</span></div>
-<div class="step done"><span class="t">2-3. 조건별 배분과 선택 (예산 150)</span><span class="badge">완료</span><div class="d">칸별 14~19개 · 부족 없음 · 21,833 프레임</div></div>
-<div class="step done"><span class="t">2-4. 비교 기준선 (random_150, random_frames)</span><span class="badge">완료</span><div class="d">random_150: 150개 31,406 프레임 · random_frames: 104개 21,500 프레임 (-1.5%)</div></div>
-<div class="step done"><span class="t">2-5. 출력 (selection.json · 요약 · 필터 키 복사본)</span><span class="badge">완료</span><div class="d">C:\curation-data\runs\R-20261011-select01\</div></div>
-<div class="step done"><span class="t">2-6. 검증 (규칙 검사 · 라벨 사후 확인 · 칸 안 위치 쏠림)</span><span class="badge">완료</span><div class="d">테스트 11개 통과 · curated better 81 / okay 54 / worse 15 · 쏠림 최대 0.54 &lt; 무작위 95% 기준 0.72</div></div>
+<div class="step done"><span class="t">3-0. 브랜치 생성 · PR 양식</span><span class="badge">완료</span><div class="d">feat/mcp-server · .github/pull_request_template.md</div></div>
+<div class="step done"><span class="t">3-1. 서버 뼈대 (127.0.0.1:8800, host.docker.internal 허용)</span><span class="badge">완료</span></div>
+<div class="step done"><span class="t">3-2. 도구 등록: analyze_data, select_demos (이름으로만 데이터 선택, runs 폴더 밖 차단)</span><span class="badge">완료</span><div class="d">HTTP 실제 호출 성공 · 결과가 2단계와 동일</div></div>
+<div class="step done"><span class="t">3-3. log_event · 도구 호출 자동 기록 (events.jsonl)</span><span class="badge">완료</span><div class="d">C:\curation-data\logs\events.jsonl</div></div>
+<div class="step done"><span class="t">3-4. 테스트 · MCP Inspector 호출</span><span class="badge">완료</span><div class="d">테스트 19개 통과 · Inspector 2.8.0에서 analyze_data 실행 성공</div></div>
+<div class="step done"><span class="t">3-5. Dify 연결 (Inspector와 Dify 양쪽 호출 성공 = 통과)</span><span class="badge">완료</span><div class="d">analyze_data → run_id 추출 → select_demos → log_event 모두 성공 (1.8초)
+주의: MCP 도구 결과는 text가 아니라 json 칸으로 들어온다</div></div>
+<div class="step wait"><span class="t">3-6. 정리 · PR · main에 합치기</span><span class="badge">Merge 대기</span><div class="d">test-mcp-hitl, test-hello 삭제 완료 · PR 올림 → 서영 님이 GitHub에서 Merge</div></div>
 </body></html>
