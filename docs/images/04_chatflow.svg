@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="760" viewBox="0 0 1600 760" font-family="Malgun Gothic, 'Apple SD Gothic Neo', sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+    <marker id="o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ea580c"/></marker>
+  </defs>
+  <style>
+    .n{fill:#fff;stroke:#334155;stroke-width:1.8}
+    .llm{fill:#eef2ff;stroke:#6366f1}
+    .tool{fill:#ecfdf5;stroke:#059669}
+    .code{fill:#f8fafc;stroke:#64748b}
+    .hitl{fill:#fef9c3;stroke:#ca8a04;stroke-width:2.5}
+    .ans{fill:#f1f5f9;stroke:#94a3b8}
+    .fail{fill:#fff7ed;stroke:#ea580c;stroke-dasharray:5 3}
+    .t{font-size:14px;font-weight:700;fill:#0f172a;text-anchor:middle}
+    .s{font-size:11.5px;fill:#475569;text-anchor:middle}
+    .e{stroke:#334155;stroke-width:1.8;fill:none}
+    .ef{stroke:#ea580c;stroke-width:1.8;fill:none;stroke-dasharray:6 4}
+    .l{font-size:11.5px;fill:#334155}
+    .lf{font-size:11.5px;fill:#c2410c}
+  </style>
+  <rect width="1600" height="760" fill="#fff"/>
+  <text x="30" y="38" font-size="24" font-weight="700" fill="#0f172a">Dify 채팅플로우 "시범데이터 선별 에이전트" (MVP 4단계)</text>
+  <text x="30" y="62" font-size="13" fill="#64748b">노드 22개 · LLM은 Gemma-4-26B-A4B(예비 Qwen3.6) · 도구는 curation-tools MCP · 실선 = 정상 흐름, 주황 점선 = 실패 분기</text>
+
+  <!-- 줄 1 -->
+  <rect x="20" y="110" width="110" height="64" rx="10" class="n"/><text x="75" y="147" class="t">시작</text>
+  <rect x="160" y="110" width="150" height="64" rx="10" class="n llm"/><text x="235" y="138" class="t">질문 영어 변환</text><text x="235" y="158" class="s">LLM · Gemma</text>
+  <rect x="340" y="110" width="150" height="64" rx="10" class="n code" style="fill:#f0f9ff;stroke:#0284c7"/><text x="415" y="138" class="t">근거 검색</text><text x="415" y="158" class="s">지식베이스 Top K 4</text>
+  <rect x="520" y="110" width="150" height="64" rx="10" class="n code"/><text x="595" y="138" class="t">근거 정리</text><text x="595" y="158" class="s">코드 · 조각 → 텍스트</text>
+  <rect x="700" y="100" width="190" height="84" rx="10" class="n llm" style="stroke-width:3"/><text x="795" y="128" class="t">에이전트 (Gemma)</text><text x="795" y="148" class="s">function calling, 5회 상한</text><text x="795" y="166" class="s">도구: analyze_data, select_demos</text>
+  <rect x="930" y="110" width="160" height="64" rx="10" class="n code"/><text x="1010" y="138" class="t">에이전트 답 모으기</text><text x="1010" y="158" class="s">변수 집계</text>
+  <rect x="1120" y="110" width="170" height="64" rx="10" class="n tool"/><text x="1205" y="138" class="t">검수</text><text x="1205" y="158" class="s">review_selection · 재시도 2회</text>
+  <rect x="1320" y="110" width="150" height="64" rx="10" class="n code"/><text x="1395" y="138" class="t">검수 결과 정리</text><text x="1395" y="158" class="s">코드 · 승인 화면 문구</text>
+
+  <line x1="130" y1="142" x2="157" y2="142" class="e" marker-end="url(#a)"/>
+  <line x1="310" y1="142" x2="337" y2="142" class="e" marker-end="url(#a)"/>
+  <line x1="490" y1="142" x2="517" y2="142" class="e" marker-end="url(#a)"/>
+  <line x1="670" y1="142" x2="697" y2="142" class="e" marker-end="url(#a)"/>
+  <line x1="890" y1="142" x2="927" y2="142" class="e" marker-end="url(#a)"/>
+  <line x1="1090" y1="142" x2="1117" y2="142" class="e" marker-end="url(#a)"/>
+  <line x1="1290" y1="142" x2="1317" y2="142" class="e" marker-end="url(#a)"/>
+  <path d="M1470,142 L1540,142 L1540,250 L1490,250" class="e" marker-end="url(#a)"/>
+
+  <!-- 예비 에이전트 -->
+  <rect x="700" y="240" width="190" height="64" rx="10" class="n llm"/><text x="795" y="268" class="t">예비 에이전트 (Qwen)</text><text x="795" y="288" class="s">생각 끔 · 같은 도구</text>
+  <path d="M795,184 L795,237" class="ef" marker-end="url(#o)"/><text x="805" y="215" class="lf">모델 실패</text>
+  <path d="M890,272 L1010,272 L1010,177" class="e" marker-end="url(#a)"/>
+  <rect x="700" y="340" width="190" height="50" rx="10" class="n fail"/><text x="795" y="370" class="t" style="fill:#9a3412;font-size:13px">답변: 에이전트 실패 안내</text>
+  <path d="M795,304 L795,337" class="ef" marker-end="url(#o)"/>
+
+  <!-- 검수 실패 -->
+  <rect x="1100" y="240" width="210" height="50" rx="10" class="n fail"/><text x="1205" y="270" class="t" style="fill:#9a3412;font-size:13px">답변: 도구 서버 연결 실패</text>
+  <path d="M1205,174 L1205,237" class="ef" marker-end="url(#o)"/><text x="1215" y="210" class="lf">재시도 후 실패</text>
+
+  <!-- 판정 -->
+  <rect x="1340" y="225" width="150" height="54" rx="27" class="n" style="fill:#fff;stroke:#334155"/><text x="1415" y="257" class="t">검수 판정</text>
+
+  <!-- 판정 분기 -->
+  <rect x="1360" y="330" width="210" height="50" rx="10" class="n ans"/><text x="1465" y="352" class="t" style="font-size:13px">답변: 에이전트 답 그대로</text><text x="1465" y="370" class="s">분석만 · 근거 질문 · 되묻기</text>
+  <path d="M1460,279 L1460,327" class="e" marker-end="url(#a)"/><text x="1470" y="308" class="l">none</text>
+  <rect x="1360" y="420" width="210" height="50" rx="10" class="n fail"/><text x="1465" y="450" class="t" style="fill:#9a3412;font-size:13px">답변: 검수 반려 + 사유</text>
+  <path d="M1490,262 C1590,262 1590,445 1573,445" class="ef" marker-end="url(#o)"/><text x="1520" y="405" class="lf">revise</text>
+
+  <!-- 승인 -->
+  <rect x="980" y="430" width="230" height="84" rx="10" class="n hitl"/><text x="1095" y="460" class="t" style="fill:#854d0e">학습 승인 (사람)</text><text x="1095" y="480" class="s" style="fill:#854d0e">Human Input · 묶음 표 · 예상 시간</text><text x="1095" y="498" class="s" style="fill:#854d0e">대기 중 상태 저장, 24시간</text>
+  <path d="M1372,272 L1330,310 L1330,472 L1213,472" class="e" marker-end="url(#a)"/><text x="1295" y="390" class="l">pass</text>
+
+  <rect x="640" y="400" width="170" height="54" rx="10" class="n tool"/><text x="725" y="425" class="t">승인 기록</text><text x="725" y="443" class="s">log_event approved</text>
+  <rect x="400" y="400" width="190" height="54" rx="10" class="n llm"/><text x="495" y="425" class="t">최종 보고 (Gemma)</text><text x="495" y="443" class="s">숫자는 자료 값만</text>
+  <rect x="190" y="400" width="170" height="54" rx="10" class="n ans"/><text x="275" y="432" class="t" style="font-size:13px">답변: 승인 + 보고</text>
+  <path d="M980,455 L860,455 L860,427 L813,427" class="e" marker-end="url(#a)"/><text x="880" y="447" class="l">승인</text>
+  <line x1="640" y1="427" x2="593" y2="427" class="e" marker-end="url(#a)"/>
+  <line x1="400" y1="427" x2="363" y2="427" class="e" marker-end="url(#a)"/>
+
+  <rect x="640" y="520" width="170" height="54" rx="10" class="n tool"/><text x="725" y="545" class="t">거부 기록</text><text x="725" y="563" class="s">log_event rejected</text>
+  <rect x="400" y="520" width="190" height="54" rx="10" class="n ans"/><text x="495" y="552" class="t" style="font-size:13px">답변: 거부, 학습 안 함</text>
+  <path d="M1095,514 L1095,547 L813,547" class="e" marker-end="url(#a)"/><text x="940" y="540" class="l">거부</text>
+  <line x1="640" y1="547" x2="593" y2="547" class="e" marker-end="url(#a)"/>
+
+  <!-- 설명 -->
+  <rect x="20" y="610" width="1560" height="130" rx="12" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="40" y="638" font-size="14" font-weight="700" fill="#334155">설계 포인트 (7주차 명세서와 대응)</text>
+  <text x="40" y="664" font-size="13" fill="#475569">· LLM이 판단하는 곳은 에이전트 하나. 검수는 에이전트가 아니라 서버가 저장된 결과 파일로 규칙 검사 (에이전트 보고를 믿지 않음)</text>
+  <text x="40" y="686" font-size="13" fill="#475569">· 근거 검색 결과는 "근거 정리" 노드에서 텍스트로 바꿔 에이전트 지시문의 &lt;context&gt;에 넣는다 (에이전트 노드의 context 입력은 출처 표시용일 뿐 모델에 전달되지 않음)</text>
+  <text x="40" y="708" font-size="13" fill="#475569">· 도구 호출에는 대화 ID가 고정값으로 들어가 events.jsonl에 대화별 기록이 남는다. 승인 대기 중에는 실행 상태가 저장되어 나중에 승인해도 이어진다</text>
+  <text x="40" y="730" font-size="13" fill="#475569">· 학습(코랩)은 다음 단계에서 승인 뒤에 연결한다 (train_evaluate prepare/collect)</text>
+</svg>

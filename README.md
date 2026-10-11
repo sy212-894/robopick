@@ -7,7 +7,8 @@
 - 계획: `../8주차/MVP_구현계획.md`
 
 ## 폴더
-- `curation_tools/` MCP 도구 서버 (analyze_data, select_demos, train_evaluate, log_event)
+- `curation_tools/` MCP 도구 서버 (analyze_data, select_demos, review_selection, log_event / train_evaluate는 5단계)
+- `dify/` Dify 채팅플로우 설정(DSL)
 - `colab/` 코랩 노트북
 - `docs/` 단계별 기록
 
@@ -22,6 +23,8 @@ conda run --no-capture-output -n curation python -m curation_tools.server
 - 주소: `http://127.0.0.1:8800/mcp`, Dify 컨테이너에서는 `http://host.docker.internal:8800/mcp`
 - 실행 기록: `C:\curation-data\logs\events.jsonl`
 - 결과: `C:\curation-data\runs\<run_id>\`
+
+Dify 채팅플로우: Dify 스튜디오에서 `dify/curation_chatflow.yml`을 가져온다 (도구 서버가 켜져 있어야 함). 자세한 내용은 `docs/04_dify_chatflow.md`
 
 테스트
 ```powershell
