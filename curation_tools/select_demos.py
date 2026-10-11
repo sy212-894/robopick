@@ -4,7 +4,8 @@
 - 품질 점수: 길이·정지 비율·경로 길이·그리퍼 개폐 횟수의 순위 백분위 평균 (작을수록 좋음, 가중치 동일).
   숙련도 라벨은 선별에 쓰지 않고, 선택 결과를 사후 확인하는 데만 쓴다.
 - 배분: 예산을 조건 칸 크기 비율로 나누고(최대 나머지 방식), 칸 안에서 품질 점수 순으로 고른다.
-- 기준선: 같은 개수 무작위(random_N), 총 프레임을 맞춘 무작위(random_frames).
+- 기준선: 같은 개수 무작위(random_N), 총 프레임을 맞춘 무작위(random_frames),
+  조건별 균등 선택(stratified_random_N: 칸별 개수는 같고 칸 안은 무작위).
 - 원본 hdf5는 건드리지 않고, 복사본 하나에 필터 키(mask/<이름>)를 넣는다.
 
 사용: python -m curation_tools.select_demos --analysis C:/curation-data/runs/R-20261011-analyze01/analysis.json
@@ -85,6 +86,17 @@ def random_frames(pool: list[dict], target: int, rng: np.random.Generator, tol: 
     return sorted(picked, key=lambda s: int(s.split("_")[1]))
 
 
+def stratified_random(pool: list[dict], planned: dict[str, int], rng: np.random.Generator) -> list[str]:
+    """조건별 균등 기준선: 칸마다 curated와 같은 개수를 고르되 칸 안에서는 무작위로 고른다.
+    curated와 비교하면 "품질 점수의 효과"만, random과 비교하면 "칸별 배분의 효과"만 볼 수 있다."""
+    picked = []
+    for cond, want in planned.items():
+        members = [d["id"] for d in pool if d["condition"] == cond]
+        take = min(want, len(members))
+        picked += [members[i] for i in sorted(rng.choice(len(members), size=take, replace=False))]
+    return _sort_ids(picked)
+
+
 def _sort_ids(ids: list[str]) -> list[str]:
     return sorted(ids, key=lambda s: int(s.split("_")[1]))
 
@@ -150,6 +162,8 @@ def select(analysis: dict, budget: int = DEFAULT_BUDGET, seed: int = 0) -> dict:
         f"random_{budget}": random_count(pool, budget, rng),
         "random_frames": random_frames(pool, curated_frames, rng),
     }
+    # 앞의 두 기준선과 같은 rng를 이어서 쓴다 (기존 기준선 결과가 바뀌지 않게 맨 뒤에 추가)
+    sets[f"stratified_random_{budget}"] = stratified_random(pool, planned, rng)
     frames_of = lambda ids: int(sum(demos_by_id[i]["length"] for i in ids))
     issues = []
     for name, ids in sets.items():
