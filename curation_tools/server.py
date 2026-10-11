@@ -1,4 +1,4 @@
-"""curation-tools MCP 서버: analyze_data, select_demos, log_event를 Dify 같은 MCP 클라이언트에 도구로 제공한다.
+"""curation-tools MCP 서버: analyze_data, select_demos, review_selection, log_event를 Dify 같은 MCP 클라이언트에 도구로 제공한다.
 
 - 주소: http://127.0.0.1:8800/mcp (Dify 컨테이너에서는 http://host.docker.internal:8800/mcp)
 - 도구 인자는 LLM이 정하므로 파일 경로를 직접 받지 않는다. 데이터는 이름(DATASETS)으로만 고르고,
@@ -22,6 +22,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
 from curation_tools import analyze as A
+from curation_tools import review as R
 from curation_tools import select_demos as S
 
 HOST, PORT = "127.0.0.1", 8800
@@ -135,6 +136,52 @@ def select_demos(analysis_run_id: str, budget: int = S.DEFAULT_BUDGET, seed: int
 
     args = {"analysis_run_id": analysis_run_id, "budget": budget, "seed": seed}
     return _traced("select_demos", args, session_id, work)
+
+
+def _unreviewed_select(session_id: str) -> str | None:
+    """이 대화에서 select_demos가 만든 run_id 중 아직 검수하지 않은 가장 최근 것."""
+    if not EVENTS_PATH.exists():
+        return None
+    made, reviewed = [], set()
+    for line in EVENTS_PATH.read_text(encoding="utf-8").splitlines():
+        e = json.loads(line)
+        if e.get("session_id") != session_id:
+            continue
+        if e.get("tool") == "select_demos" and e.get("event") == "tool_end" and e.get("run_id"):
+            made.append(e["run_id"])
+        elif e.get("event") == "review":
+            reviewed.add(e.get("reviewed_run_id"))
+    pending = [r for r in made if r not in reviewed]
+    return pending[-1] if pending else None
+
+
+@mcp.tool()
+def review_selection(session_id: str | None = None, run_id: str | None = None) -> dict[str, Any]:
+    """select_demos 결과를 저장된 파일로 다시 검사한다 (검수자). 에이전트가 보고한 내용은 보지 않는다.
+
+    session_id: 대화 ID. 이 대화에서 아직 검수하지 않은 가장 최근 선별 결과를 검사한다.
+    run_id: 특정 선별 결과를 지정할 때 (선택).
+    반환: verdict(pass / revise / none), issues, warnings, 선택 수·총 프레임, 비교 묶음, 학습 계획(예상 시간).
+    이번 대화에서 선별한 결과가 없으면 verdict가 none이다.
+    """
+    _check_session(session_id)
+    if run_id is None and session_id is None:
+        raise ValueError("session_id나 run_id 중 하나는 필요하다")
+
+    def work() -> dict:
+        target = run_id or _unreviewed_select(session_id)
+        if target is None:
+            return {"verdict": "none", "run_id": None, "detail": "이번 대화에서 검수할 선별 결과가 없음"}
+        run_dir = _run_dir(target)
+        if not (run_dir / "selection.json").exists():
+            raise ValueError(f"{target}는 select_demos 결과가 아니다")
+        result = R.review(run_dir, RUNS_ROOT)
+        write_event({"session_id": session_id, "tool": "review_selection", "event": "review",
+                     "reviewed_run_id": target, "verdict": result["verdict"],
+                     "issues": [i["check"] for i in result["issues"]]})
+        return result
+
+    return _traced("review_selection", {"run_id": run_id}, session_id, work)
 
 
 @mcp.tool()

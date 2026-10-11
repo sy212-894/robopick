@@ -41,7 +41,7 @@ def events(tmp_path):
 async def test_tools_listed():
     async with create_connected_server_and_client_session(srv.mcp._mcp_server) as s:
         names = {t.name for t in (await s.list_tools()).tools}
-    assert names == {"analyze_data", "select_demos", "log_event"}
+    assert names == {"analyze_data", "select_demos", "review_selection", "log_event"}
 
 
 async def test_analyze_then_select(isolated):
@@ -87,3 +87,29 @@ async def test_log_event(isolated):
     assert out == {"ok": True} and bad.isError
     ev = events(isolated)
     assert ev[-1]["stage"] == "approval" and ev[-1]["agent_event"] == "approved"
+
+
+async def test_review_selection(isolated):
+    async with create_connected_server_and_client_session(srv.mcp._mcp_server) as s:
+        # 선별 전에는 검수할 것이 없다
+        _, none = await call(s, "review_selection", {"session_id": "conv-r"})
+        assert none["verdict"] == "none"
+        _, a = await call(s, "analyze_data", {"session_id": "conv-r"})
+        _, sel = await call(s, "select_demos", {"analysis_run_id": a["run_id"], "session_id": "conv-r"})
+        _, rv = await call(s, "review_selection", {"session_id": "conv-r"})
+        assert rv["verdict"] == "pass" and rv["run_id"] == sel["run_id"] and rv["issues"] == []
+        assert rv["selected"] == {"n_demos": 150, "total_frames": 21833}
+        assert rv["training_plan"]["n_sets"] == 4
+        assert "demo_" not in json.dumps(rv) and "better" not in json.dumps(rv)
+        # 같은 결과를 두 번 검수하지 않는다
+        _, again = await call(s, "review_selection", {"session_id": "conv-r"})
+        assert again["verdict"] == "none"
+        # 파일을 조작해 예산을 넘기면 revise로 잡는다 (에이전트 보고가 아니라 파일 기준)
+        path = isolated / "runs" / sel["run_id"] / "selection.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["selected_ids"] = data["selected_ids"] + data["selected_ids"][:5]
+        path.write_text(json.dumps(data), encoding="utf-8")
+        _, bad = await call(s, "review_selection", {"run_id": sel["run_id"], "session_id": "conv-r"})
+    checks = {i["check"] for i in bad["issues"]}
+    assert bad["verdict"] == "revise" and {"budget", "duplicate", "allocation"} <= checks
+    assert any(e.get("event") == "review" for e in events(isolated))
