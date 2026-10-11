@@ -12,4 +12,4 @@
 - `docs/` 단계별 기록
 
 ## 환경
-- conda 환경 `curation` (Python 3.10): h5py, numpy, mcp
+- conda 환경 `curation` (Python 3.10): h5py, numpy, mcp 1.x (`mcp[cli]<2`, 2.x는 API 변경)

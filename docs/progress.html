@@ -10,27 +10,19 @@ h1{font-size:22px;margin:0 0 4px}.sub{color:#64748b;font-size:13px;margin-bottom
 .done .badge{background:#dcfce7;color:#166534}.doing .badge{background:#fef3c7;color:#92400e}.todo .badge{background:#f1f5f9}.wait .badge{background:#dbeafe;color:#1e40af}
 .d{font-size:13px;margin-top:6px;color:#334155;white-space:pre-line}
 </style></head><body>
-<h1>0단계: 환경 확인</h1><div class="sub">5초마다 자동 새로고침</div>
+<h1>0단계: 환경 확인</h1><div class="sub">5초마다 자동 새로고침 · 상세: docs/00_환경확인.md</div>
 
 <div class="step done"><span class="t">0-1. 작업 폴더 · 파이썬 환경</span><span class="badge">완료</span>
-<div class="d">conda 환경 curation (Python 3.10.20) · h5py 3.16 · numpy 2.2.6 · mcp 2.3</div></div>
-
-<div class="step done"><span class="t">0-6. git 저장소 시작</span><span class="badge">완료</span>
-<div class="d">커밋 1c815e8 (초기화) · a62708f (확인 스크립트)</div></div>
-
+<div class="d">conda curation (Python 3.10) · h5py · numpy · mcp 1.30 (2.x는 API 변경으로 제외)</div></div>
+<div class="step done"><span class="t">0-6. git 저장소</span><span class="badge">완료</span>
+<div class="d">main 브랜치 · Claude 공동저자 표시 제거 완료</div></div>
 <div class="step done"><span class="t">0-2. 데이터 다운로드</span><span class="badge">완료</span>
-<div class="d">C:\curation-data\raw\can_mh_low_dim.hdf5 · 107.6MB</div></div>
-
+<div class="d">can_mh_low_dim.hdf5 · 107.6MB</div></div>
 <div class="step done"><span class="t">0-3. 데이터 구조 확인</span><span class="badge">완료</span>
-<div class="d">시범 300개 · 길이 98~1050 (평균 209)
-숙련도 키 worse/okay/better 각 100개 · train 270 / valid 30
-obs/object 14차원 → 캔 초기 위치·방향 사용 가능
-환경 PickPlaceCan · Panda · 제어기 BASIC (robosuite 1.5 형식)</div></div>
-
-<div class="step wait"><span class="t">0-4. 코랩 스모크 테스트</span><span class="badge">사용자 실행 차례</span>
-<div class="d">노트북: curation-agent\colab\00_smoke_test.ipynb
-robosuite v1.5.1 + robomimic 소스 설치 → 데이터 → MuJoCo 롤아웃 → BC 3 epoch + 롤아웃 5회 시간 측정</div></div>
-
-<div class="step doing"><span class="t">0-5. Dify 확인 (MCP 연결 · Human Input)</span><span class="badge">진행 중</span>
-<div class="d">시험용 MCP 서버(hello 도구) → Dify 등록 → 호출 확인</div></div>
+<div class="d">300개 · 숙련도 키 worse/okay/better · 캔 위치(object 14차원) 사용 가능</div></div>
+<div class="step done"><span class="t">0-5. Dify 확인</span><span class="badge">완료</span>
+<div class="d">MCP 도구 호출 SUCCESS (0.26초) · SSRF 프록시에 host.docker.internal 허용
+Human Input("사람 입력") 노드 있음 · API 승인은 문서상 가능</div></div>
+<div class="step wait"><span class="t">0-4. 코랩 스모크 테스트</span><span class="badge">사용자 실행 대기</span>
+<div class="d">curation-agent\colab\00_smoke_test.ipynb → 코랩 업로드 → T4 GPU → 셀 순서대로 실행 → [결과] 줄 붙여넣기</div></div>
 </body></html>
