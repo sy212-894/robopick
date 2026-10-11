@@ -13,3 +13,17 @@
 
 ## 환경
 - conda 환경 `curation` (Python 3.10): h5py, numpy, mcp 1.x (`mcp[cli]<2`, 2.x는 API 변경)
+
+## 실행
+도구 서버 켜기 (PowerShell, 이 폴더에서). Dify 시연 중에는 켜져 있어야 한다.
+```powershell
+conda run --no-capture-output -n curation python -m curation_tools.server
+```
+- 주소: `http://127.0.0.1:8800/mcp`, Dify 컨테이너에서는 `http://host.docker.internal:8800/mcp`
+- 실행 기록: `C:\curation-data\logs\events.jsonl`
+- 결과: `C:\curation-data\runs\<run_id>\`
+
+테스트
+```powershell
+conda run -n curation python -m pytest tests -q
+```
