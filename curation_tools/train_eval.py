@@ -39,6 +39,15 @@ def _order(names: list[str]) -> list[str]:
     return sorted(names, key=key)
 
 
+def compact_plan(plan: dict) -> str:
+    """코랩 셀에 붙여 넣을 한 줄 문자열 (zlib + base64). 시범 이름은 번호만 남긴다."""
+    import base64
+    import zlib
+    body = {"fp": plan["fingerprint"], "run_id": plan["run_id"], "config": plan["config"], "order": plan["order"],
+            "sets": {k: [int(i.split("_")[1]) for i in v] for k, v in plan["sets"].items()}}
+    return base64.b64encode(zlib.compress(json.dumps(body, separators=(",", ":")).encode(), 9)).decode()
+
+
 def fingerprint(sets: dict[str, list[str]], config: dict, data_sha: str) -> str:
     body = json.dumps({"sets": {k: sorted(v) for k, v in sorted(sets.items())}, "config": config, "data": data_sha},
                       sort_keys=True)
@@ -60,6 +69,7 @@ def prepare(run_dir: Path, runs_root: Path, config: dict | None = None) -> dict:
     out = run_dir / "plan"
     out.mkdir(exist_ok=True)
     (out / "plan.json").write_text(json.dumps(plan, ensure_ascii=False), encoding="utf-8")
+    (out / "plan_b64.txt").write_text(compact_plan(plan), encoding="ascii")
     return {"run_id": sel["run_id"], "fingerprint": fp, "status": "prepared",
             "n_sets": len(sets), "order": plan["order"],
             "sets": {k: len(v) for k, v in sets.items()},
