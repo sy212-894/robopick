@@ -1,0 +1,19 @@
+# 데이터 파일 (데이터는 C:\curation-data 에 두고 저장소에 넣지 않는다)
+*.hdf5
+*.h5
+*.zip
+data/
+runs/
+
+# 비밀 정보 (API 키 등)
+.env
+*.key
+
+# 파이썬
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# 영상 · 로그
+*.mp4
+logs/
