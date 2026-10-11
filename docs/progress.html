@@ -9,15 +9,29 @@ h1{font-size:22px;margin:0 0 4px}.sub{color:#64748b;font-size:13px;margin-bottom
 .badge{font-size:12px;padding:2px 8px;border-radius:99px;margin-left:8px}
 .done .badge{background:#dcfce7;color:#166534}.doing .badge{background:#fef3c7;color:#92400e}.todo .badge{background:#f1f5f9}.wait .badge{background:#dbeafe;color:#1e40af}
 .d{font-size:13px;margin-top:6px;color:#334155;white-space:pre-line}
+h2{font-size:16px;margin:20px 0 8px;color:#334155}
 </style></head><body>
-<h1>3단계: MCP 도구 서버 curation-tools — PR 확인 대기</h1><div class="sub">5초마다 자동 새로고침 · 브랜치 feat/mcp-server · 결과 문서 docs/03_mcp_server.md</div>
+<h1>6주차 과제 → 7주차 과제 → 4단계</h1><div class="sub">5초마다 자동 새로고침 · 0~3단계 완료 · 에이전트 방식: 혼합형(분석·선별은 에이전트, 검수·승인은 고정)</div>
 
-<div class="step done"><span class="t">3-0. 브랜치 생성 · PR 양식</span><span class="badge">완료</span><div class="d">feat/mcp-server · .github/pull_request_template.md</div></div>
-<div class="step done"><span class="t">3-1. 서버 뼈대 (127.0.0.1:8800, host.docker.internal 허용)</span><span class="badge">완료</span></div>
-<div class="step done"><span class="t">3-2. 도구 등록: analyze_data, select_demos (이름으로만 데이터 선택, runs 폴더 밖 차단)</span><span class="badge">완료</span><div class="d">HTTP 실제 호출 성공 · 결과가 2단계와 동일</div></div>
-<div class="step done"><span class="t">3-3. log_event · 도구 호출 자동 기록 (events.jsonl)</span><span class="badge">완료</span><div class="d">C:\curation-data\logs\events.jsonl</div></div>
-<div class="step done"><span class="t">3-4. 테스트 · MCP Inspector 호출</span><span class="badge">완료</span><div class="d">테스트 19개 통과 · Inspector 2.8.0에서 analyze_data 실행 성공</div></div>
-<div class="step done"><span class="t">3-5. Dify 연결 (Inspector와 Dify 양쪽 호출 성공 = 통과)</span><span class="badge">완료</span><div class="d">analyze_data → run_id 추출 → select_demos → log_event 모두 성공 (1.8초)
-주의: MCP 도구 결과는 text가 아니라 json 칸으로 들어온다</div></div>
-<div class="step wait"><span class="t">3-6. 정리 · PR · main에 합치기</span><span class="badge">Merge 대기</span><div class="d">test-mcp-hitl, test-hello 삭제 완료 · PR 올림 → 서영 님이 GitHub에서 Merge</div></div>
+<h2>6주차: 모델 선택 근거 1쪽</h2>
+<div class="step done"><span class="t">6-1. 요건표 (역할별)</span><span class="badge">완료</span><div class="d">에이전트 · 리서처 · 보고 3역할 / 노트북 RAM 15.5GB, Intel Arc(CUDA 없음) → MVP는 OpenRouter API</div></div>
+<div class="step wait"><span class="t">6-2. 후보 준비 (qwen3.6-35b-a3b, gemma-4-26b-a4b, gpt-oss-20b + 기준 gpt-4o-mini)</span><span class="badge">일부 대기</span><div class="d">gpt-oss-20b: Dify 추가에 API 키 입력 필요 → 사용자 입력 대기 · 벤치용 Dify 앱 3개 생성</div></div>
+<div class="step done"><span class="t">6-3. 간이 벤치 11문항</span><span class="badge">완료 (gpt-oss-20b 제외)</span><div class="d">도구 호출 전 모델 5/5 · 품질 1위 gemma-4-26b-a4b (5.0/5, 시연 1회 $0.0007)
+qwen은 생각 기능을 끄면 양호, 켜면 RAG·보고 빈 답 · gpt-4o-mini는 보고에서 문장 지어냄 1건</div></div>
+<div class="step done"><span class="t">6-4. 선택 근거 1쪽</span><span class="badge">완료 (gpt-oss-20b 칸 대기)</span><div class="d">결론: Gemma-4-26B-A4B를 세 역할 모두에 사용, 예비 모델 Qwen3.6(생각 끔)
+6주차\제출물주차_모델선택근거_Demonstration자동선별_방서영.txt</div></div>
+
+<h2>7주차: 설계 명세서 + 다이어그램</h2>
+<div class="step done"><span class="t">7-1. 기능 분해 (입력 → 처리 → 출력, 단계별 담당)</span><span class="badge">완료</span><div class="d">9단계: 해석(LLM) · 근거(RAG) · 분석/선별(도구) · 검수(규칙) · 승인(사람) · 학습 준비(도구) · 학습(코랩) · 보고(LLM)</div></div>
+<div class="step done"><span class="t">7-2. 다이어그램 2장 (컴포넌트 · 데이터 흐름, 화살표 라벨 · HITL · 실패 지점)</span><span class="badge">완료</span><div class="d">7주차\제출물주차_컴포넌트다이어그램.png · 7주차_데이터흐름도.png (SVG 원본 포함)</div></div>
+<div class="step done"><span class="t">7-3. 설계 명세서 7칸</span><span class="badge">완료</span><div class="d">우선순위 프라이버시 &gt; 품질 &gt; 지연 &gt; 비용 · HITL: 학습 전 승인 게이트 + 모호성 되묻기</div></div>
+<div class="step done"><span class="t">7-4. MVP 포함/제외 표</span><span class="badge">완료</span><div class="d">포함 8 · 제외 15 항목</div></div>
+
+<h2>4단계: Dify 채팅플로우 (브랜치 feat/dify-chatflow) — PR Merge 대기</h2>
+<div class="step done"><span class="t">4-1. 검수 도구 review_selection (서버가 실제 파일로 규칙 검사)</span><span class="badge">완료</span><div class="d">테스트 20개 통과 · Dify 도구 4개 인식</div></div>
+<div class="step done"><span class="t">4-2. 채팅플로우 구성 (번역 → 지식 검색 → 에이전트 → 검수 → 사람 승인 → 보고)</span><span class="badge">완료</span><div class="d">Dify 앱 "시범데이터 선별 에이전트" (노드 18개) · 정상 시나리오 승인까지 9.8초, 승인 후 보고까지 완료</div></div>
+<div class="step done"><span class="t">4-3. 실패 대비 (도구 재시도 · 예비 모델 · 우아한 실패)</span><span class="badge">완료</span><div class="d">검수 재시도 2회 → 실패 안내 · 주 모델 실패 → Qwen 예비 에이전트 → 답 모으기</div></div>
+<div class="step done"><span class="t">4-4. 시나리오 테스트 (정상 · 개수 없음 · 범위 밖 · 서버 꺼짐 · 근거 질문 · 승인/거부)</span><span class="badge">완료</span><div class="d">10개 중 9개 통과, 1개 부분 통과(S4 필터 키 질문: 3주차부터의 RAG 검색 한계)
+테스트 중 고침: 근거를 에이전트 지시문에 직접 넣기, 예비 모델 출력 모으기, 과장 표현 금지</div></div>
+<div class="step wait"><span class="t">4-5. DSL 저장 · 문서 · PR</span><span class="badge">Merge 대기</span><div class="d">dify/curation_chatflow.yml · docs/04_dify_chatflow.md · PR 올림</div></div>
 </body></html>
