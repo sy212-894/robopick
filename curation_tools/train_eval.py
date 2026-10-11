@@ -19,7 +19,7 @@ DATASET = {"name": "can_mh", "hf_repo": "robomimic/robomimic_datasets", "hf_path
 # 200 epoch 시점 차이가 가장 커서(7/10 vs 3/10) 학습 속도 비교용 중간 평가를 둔다. LLM이 바꾸지 못하도록 도구 인자로 받지 않는다
 TRAIN_CONFIG = {"algo": "bc_rnn", "num_epochs": 400, "steps_per_epoch": 100, "batch_size": 100,
                 "seed": 1, "rollout_n": 50, "rollout_horizon": 400, "early_eval_epoch": 200, "early_eval_n": 30}
-MINUTES_PER_SET = 28  # 파일럿 측정: BC-RNN 학습 약 14분 + 평가(30회 + 50회) 약 14분
+MINUTES_PER_SET = 22  # 본 실험 측정(2026-10-12, T4): BC-RNN 학습 약 10분 + 평가(30회 + 50회) 약 12분
 TARGET_GAIN = 0.05     # 1주차: 같은 개수 무작위보다 +5%p
 MAX_DROP = 0.05        # 1주차: 전체 데이터 대비 하락 5%p 이내
 MIN_TRAIN_SUCCESS = 0.2  # 전체 데이터 기준선이 이보다 낮으면 판정 불가 (학습 자체가 실패)

@@ -17,8 +17,7 @@ import json
 from pathlib import Path
 
 from curation_tools.select_demos import FRAME_TOLERANCE
-
-MINUTES_PER_SET = 30  # 0단계 코랩 측정 기반 추정 (학습 20분 + 롤아웃 50회 10분), 미확정
+from curation_tools.train_eval import MINUTES_PER_SET, TRAIN_CONFIG
 
 
 def review(run_dir: Path, runs_root: Path) -> dict:
@@ -83,5 +82,5 @@ def review(run_dir: Path, runs_root: Path) -> dict:
         "sets": sets,
         "training_plan": {"filter_keys": plan_sets, "n_sets": len(plan_sets),
                           "est_minutes": len(plan_sets) * MINUTES_PER_SET,
-                          "note": "코랩 T4 기준 추정(묶음당 약 30분), 시드 1개"},
+                          "note": f"코랩 T4 본 실험 측정 기준(묶음당 약 {MINUTES_PER_SET}분), {TRAIN_CONFIG['algo'].upper()} {TRAIN_CONFIG['num_epochs']} epoch, 시드 1개"},
     }

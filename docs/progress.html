@@ -9,29 +9,19 @@ h1{font-size:22px;margin:0 0 4px}.sub{color:#64748b;font-size:13px;margin-bottom
 .badge{font-size:12px;padding:2px 8px;border-radius:99px;margin-left:8px}
 .done .badge{background:#dcfce7;color:#166534}.doing .badge{background:#fef3c7;color:#92400e}.todo .badge{background:#f1f5f9}.wait .badge{background:#dbeafe;color:#1e40af}
 .d{font-size:13px;margin-top:6px;color:#334155;white-space:pre-line}
-h2{font-size:16px;margin:20px 0 8px;color:#334155}
 </style></head><body>
-<h1>6주차 과제 → 7주차 과제 → 4단계</h1><div class="sub">5초마다 자동 새로고침 · 0~3단계 완료 · 에이전트 방식: 혼합형(분석·선별은 에이전트, 검수·승인은 고정)</div>
+<h1>5단계: Can 학습·평가 연결 — 진행 중</h1><div class="sub">5초마다 자동 새로고침 · 브랜치 feat/train-evaluate · 0~4단계, 6·7주차 과제 완료</div>
 
-<h2>6주차: 모델 선택 근거 1쪽</h2>
-<div class="step done"><span class="t">6-1. 요건표 (역할별)</span><span class="badge">완료</span><div class="d">에이전트 · 리서처 · 보고 3역할 / 노트북 RAM 15.5GB, Intel Arc(CUDA 없음) → MVP는 OpenRouter API</div></div>
-<div class="step wait"><span class="t">6-2. 후보 준비 (qwen3.6-35b-a3b, gemma-4-26b-a4b, gpt-oss-20b + 기준 gpt-4o-mini)</span><span class="badge">일부 대기</span><div class="d">gpt-oss-20b: Dify 추가에 API 키 입력 필요 → 사용자 입력 대기 · 벤치용 Dify 앱 3개 생성</div></div>
-<div class="step done"><span class="t">6-3. 간이 벤치 11문항</span><span class="badge">완료 (gpt-oss-20b 제외)</span><div class="d">도구 호출 전 모델 5/5 · 품질 1위 gemma-4-26b-a4b (5.0/5, 시연 1회 $0.0007)
-qwen은 생각 기능을 끄면 양호, 켜면 RAG·보고 빈 답 · gpt-4o-mini는 보고에서 문장 지어냄 1건</div></div>
-<div class="step done"><span class="t">6-4. 선택 근거 1쪽</span><span class="badge">완료 (gpt-oss-20b 칸 대기)</span><div class="d">결론: Gemma-4-26B-A4B를 세 역할 모두에 사용, 예비 모델 Qwen3.6(생각 끔)
-6주차\제출물주차_모델선택근거_Demonstration자동선별_방서영.txt</div></div>
-
-<h2>7주차: 설계 명세서 + 다이어그램</h2>
-<div class="step done"><span class="t">7-1. 기능 분해 (입력 → 처리 → 출력, 단계별 담당)</span><span class="badge">완료</span><div class="d">9단계: 해석(LLM) · 근거(RAG) · 분석/선별(도구) · 검수(규칙) · 승인(사람) · 학습 준비(도구) · 학습(코랩) · 보고(LLM)</div></div>
-<div class="step done"><span class="t">7-2. 다이어그램 2장 (컴포넌트 · 데이터 흐름, 화살표 라벨 · HITL · 실패 지점)</span><span class="badge">완료</span><div class="d">7주차\제출물주차_컴포넌트다이어그램.png · 7주차_데이터흐름도.png (SVG 원본 포함)</div></div>
-<div class="step done"><span class="t">7-3. 설계 명세서 7칸</span><span class="badge">완료</span><div class="d">우선순위 프라이버시 &gt; 품질 &gt; 지연 &gt; 비용 · HITL: 학습 전 승인 게이트 + 모호성 되묻기</div></div>
-<div class="step done"><span class="t">7-4. MVP 포함/제외 표</span><span class="badge">완료</span><div class="d">포함 8 · 제외 15 항목</div></div>
-
-<h2>4단계: Dify 채팅플로우 (브랜치 feat/dify-chatflow) — PR Merge 대기</h2>
-<div class="step done"><span class="t">4-1. 검수 도구 review_selection (서버가 실제 파일로 규칙 검사)</span><span class="badge">완료</span><div class="d">테스트 20개 통과 · Dify 도구 4개 인식</div></div>
-<div class="step done"><span class="t">4-2. 채팅플로우 구성 (번역 → 지식 검색 → 에이전트 → 검수 → 사람 승인 → 보고)</span><span class="badge">완료</span><div class="d">Dify 앱 "시범데이터 선별 에이전트" (노드 18개) · 정상 시나리오 승인까지 9.8초, 승인 후 보고까지 완료</div></div>
-<div class="step done"><span class="t">4-3. 실패 대비 (도구 재시도 · 예비 모델 · 우아한 실패)</span><span class="badge">완료</span><div class="d">검수 재시도 2회 → 실패 안내 · 주 모델 실패 → Qwen 예비 에이전트 → 답 모으기</div></div>
-<div class="step done"><span class="t">4-4. 시나리오 테스트 (정상 · 개수 없음 · 범위 밖 · 서버 꺼짐 · 근거 질문 · 승인/거부)</span><span class="badge">완료</span><div class="d">10개 중 9개 통과, 1개 부분 통과(S4 필터 키 질문: 3주차부터의 RAG 검색 한계)
-테스트 중 고침: 근거를 에이전트 지시문에 직접 넣기, 예비 모델 출력 모으기, 과장 표현 금지</div></div>
-<div class="step wait"><span class="t">4-5. DSL 저장 · 문서 · PR</span><span class="badge">Merge 대기</span><div class="d">dify/curation_chatflow.yml · docs/04_dify_chatflow.md · PR 올림</div></div>
+<div class="step done"><span class="t">5-0. 계획서 갱신 · 브랜치</span><span class="badge">완료</span><div class="d">5 Can · 6 Square · 7 프론트 · 8 마무리</div></div>
+<div class="step done"><span class="t">5-1. 조건별 균등 기준선 stratified_random_150</span><span class="badge">완료</span><div class="d">숙련도 구성 worse 47 / okay 54 / better 49 (curated는 15 / 54 / 81)</div></div>
+<div class="step done"><span class="t">5-2. train_evaluate (prepare: 학습 계획 / collect: 비교표 + 1주차 기준 3단계 판정)</span><span class="badge">완료</span><div class="d">테스트 24개 통과 · 계획 R-20261011-select-main, 지문 b40877a7bdb9d79f</div></div>
+<div class="step done"><span class="t">5-3. 코랩 노트북 01_train_eval</span><span class="badge">완료</span><div class="d">평가 시드 고정: 모든 묶음이 같은 50개 초기 상태에서 평가</div></div>
+<div class="step done"><span class="t">5-4. 파일럿 (train vs random_150, BC / BC-RNN) → 설정 확정</span><span class="badge">완료 (BC-RNN 400 epoch)</span><div class="d">BC: 400 epoch에서 train 2/10, random 1/10 (바닥)
+BC-RNN: 200 epoch 7/10 vs 3/10, 400 epoch 10/10 vs 8/10 · 묶음당 학습 약 14분</div></div>
+<div class="step done"><span class="t">5-5. 본 실험 (묶음 5개 × 시드 1 × 롤아웃 50)</span><span class="badge">완료</span><div class="d">지문 c15466d53a01cedb · 묶음당 학습 약 10분 + 평가 약 12분 · 10/12 00:20 결과 회수</div></div>
+<div class="step done"><span class="t">5-6. 결과 수집 · 해석 (신뢰구간, 예비 결과)</span><span class="badge">완료</span><div class="d">400 epoch: 선별 94% · 무작위 80% · 조건별 균등 88% · 프레임 맞춘 무작위 78% · 전체 96%
+선별 - 무작위 +14%p (95% CI +1~+27, 차이 있음) · 전체 대비 -2%p (구분 불가)
+200 epoch: 선별 73% vs 무작위 30% (+43%p, 차이 있음) · 예비 결과 (시드 1개)</div></div>
+<div class="step doing"><span class="t">5-7. Dify 연결 (승인 → prepare, 결과 조회)</span><span class="badge">대기</span></div>
+<div class="step todo"><span class="t">5-8. 테스트 · 문서 · PR · 노션</span><span class="badge">대기</span></div>
 </body></html>
