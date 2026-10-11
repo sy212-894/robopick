@@ -212,7 +212,7 @@ def train_evaluate(stage: str, run_id: str | None = None, session_id: str | None
         raise ValueError('stage는 "prepare" 또는 "collect"')
 
     def work() -> dict:
-        target = run_id
+        target = run_id or None  # Dify에서 빈 값으로 고정해 보내면 이 대화의 최근 결과를 쓴다
         if target is None and session_id:
             target = (_latest_in_session(session_id, "review", "reviewed_run_id", "pass") if stage == "prepare"
                       else _latest_in_session(session_id, "prepared", "run_id"))
