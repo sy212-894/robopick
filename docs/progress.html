@@ -10,16 +10,21 @@ h1{font-size:22px;margin:0 0 4px}.sub{color:#64748b;font-size:13px;margin-bottom
 .done .badge{background:#dcfce7;color:#166534}.doing .badge{background:#fef3c7;color:#92400e}.todo .badge{background:#f1f5f9}.wait .badge{background:#dbeafe;color:#1e40af}
 .d{font-size:13px;margin-top:6px;color:#334155;white-space:pre-line}
 </style></head><body>
-<h1>0단계: 환경 확인</h1><div class="sub">5초마다 자동 새로고침 · 마지막 갱신: 10/11</div>
+<h1>0단계: 환경 확인</h1><div class="sub">5초마다 자동 새로고침</div>
 
 <div class="step done"><span class="t">0-1. 작업 폴더 · 파이썬 환경</span><span class="badge">완료</span>
-<div class="d">코드: 서강\3-2\실전AI에이전트설계와구축\curation-agent
-데이터: C:\curation-data (OneDrive 밖)
-conda 환경 curation (Python 3.10.20) 생성됨 · 패키지 설치 중</div></div>
+<div class="d">코드: curation-agent · 데이터: C:\curation-data
+conda 환경 curation (Python 3.10.20) · h5py 3.16 · numpy 2.2.6 · mcp 2.3</div></div>
 
-<div class="step doing"><span class="t">0-6. git 저장소 시작</span><span class="badge">진행 중</span><div class="d"></div></div>
-<div class="step todo"><span class="t">0-2. 데이터 다운로드 (Can MH low_dim, 107.6MB)</span><span class="badge">대기</span></div>
-<div class="step todo"><span class="t">0-3. 데이터 구조 확인</span><span class="badge">대기</span></div>
+<div class="step done"><span class="t">0-6. git 저장소 시작</span><span class="badge">완료</span>
+<div class="d">git init -b main · .gitignore(hdf5·.env 제외) · README · 첫 커밋 1c815e8</div></div>
+
+<div class="step done"><span class="t">0-2. 데이터 다운로드</span><span class="badge">완료</span>
+<div class="d">C:\curation-data\raw\can_mh_low_dim.hdf5 · 107.6MB · 26초
+SHA256 C4A34C83…99E9F7D7</div></div>
+
+<div class="step doing"><span class="t">0-3. 데이터 구조 확인</span><span class="badge">진행 중</span>
+<div class="d">시범 개수 · 숙련도 필터 키 · 물체 상태 관측 · 길이 분포 · 환경 정보</div></div>
 <div class="step todo"><span class="t">0-4. 코랩 스모크 테스트 노트북</span><span class="badge">대기</span></div>
 <div class="step todo"><span class="t">0-5. Dify 확인 (MCP 연결 · Human Input)</span><span class="badge">대기</span></div>
 </body></html>
