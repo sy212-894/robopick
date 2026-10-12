@@ -72,6 +72,11 @@ def review(run_dir: Path, runs_root: Path) -> dict:
 
     sets = {k: {"n_demos": v["n_demos"], "total_frames": v["total_frames"]} for k, v in sel["sets"].items()}
     plan_sets = list(sets) + ["train"]  # 학습 비교 묶음: 선택 결과, 무작위 2종, 전체
+    train_ids = [d for d in analysis["demos"] if d.get("split") == "train"]
+    name = analysis["dataset"].get("name", "can_mh")
+    note = f"코랩 T4 본 실험 측정 기준(묶음당 약 {MINUTES_PER_SET}분), {TRAIN_CONFIG['algo'].upper()} {TRAIN_CONFIG['num_epochs']} epoch, 시드 1개"
+    if name != "can_mh":
+        note = f"Can 측정값을 그대로 쓴 추정(묶음당 약 {MINUTES_PER_SET}분). 이 데이터는 시범이 더 길어 실제로는 더 걸릴 수 있음, 파일럿으로 확인 예정"
     return {
         "run_id": sel["run_id"],
         "analysis_run_id": sel["analysis_run_id"],
@@ -80,8 +85,9 @@ def review(run_dir: Path, runs_root: Path) -> dict:
         "warnings": warnings,
         "budget": budget,
         "selected": {"n_demos": len(ids), "total_frames": frames},
+        "dataset": name,
         "sets": sets,
+        "train_set": {"n_demos": len(train_ids), "total_frames": int(sum(d["length"] for d in train_ids))},
         "training_plan": {"filter_keys": plan_sets, "n_sets": len(plan_sets),
-                          "est_minutes": len(plan_sets) * MINUTES_PER_SET,
-                          "note": f"코랩 T4 본 실험 측정 기준(묶음당 약 {MINUTES_PER_SET}분), {TRAIN_CONFIG['algo'].upper()} {TRAIN_CONFIG['num_epochs']} epoch, 시드 1개"},
+                          "est_minutes": len(plan_sets) * MINUTES_PER_SET, "note": note},
     }
