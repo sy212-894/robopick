@@ -1472,8 +1472,9 @@ workflow:
           \ 학습 결과\" if c.get(\"reused\") else \"학습 결과\"\n        lines.append(f\"\\\
           n**{head}** (학습 시각 {c.get('trained_at')}{', 추가 시드 ' + str(c.get('seeds_trained_at'))\
           \ if c.get('seeds_trained_at') else ''}) / {c.get('label')}\")\n       \
-          \ lines.append(\"\\n| 묶음 | 시범 수 | 시드 수 | 성공률 | 95% 신뢰구간 | 200 epoch |\\\
-          n|---|---|---|---|---|---|\")\n        for r in c.get(\"table\", []):\n\
+          \ ep = (c.get(\"config\") or {}).get(\"early_eval_epoch\") or 200\n    \
+          \    lines.append(f\"\\n| 묶음 | 시범 수 | 시드 수 | 성공률 | 95% 신뢰구간 | {ep} epoch\
+          \ |\\n|---|---|---|---|---|---|\")\n        for r in c.get(\"table\", []):\n\
           \            if \"success_rate\" not in r:\n                lines.append(f\"\
           | {r['set']} | {r['n_demos']} | - | 결과 없음 | - | - |\")\n               \
           \ continue\n            e = r.get(\"early\")\n            es = f\"{e['success_rate']:.0%}\"\
@@ -1482,10 +1483,13 @@ workflow:
           \ | {r['ci95'][0]:.0%}~{r['ci95'][1]:.0%} | {es} |\")\n        names = {\"\
           gain_vs_random\": \"선별 - 무작위 (1주차 기준: +5%p 이상)\", \"drop_vs_full\": \"전체\
           \ - 선별 (1주차 기준: 하락 5%p 이내)\",\n                 \"early_gain_vs_random\"\
-          : \"학습 속도, 200 epoch 선별 - 무작위\", \"same_frames\": \"같은 프레임 수에서 선별 - 무작위\"\
+          : f\"학습 속도, {ep} epoch 선별 - 무작위\", \"same_frames\": \"같은 프레임 수에서 선별 - 무작위\"\
           ,\n                 \"effect_allocation\": \"칸별 배분 효과\", \"effect_quality\"\
-          : \"품질 점수 효과\"}\n        j = c.get(\"judgement\", {})\n        lines.append(\"\
-          \\n**판정** (코드가 계산)\")\n        if \"validity\" in j:\n            lines.append(f\"\
+          : \"품질 점수 효과\",\n                 \"paired_gain_vs_random\": \"짝지은 비교: 선별\
+          \ - 무작위\", \"paired_drop_vs_full\": \"짝지은 비교: 전체 - 선별\",\n             \
+          \    \"paired_early_gain_vs_random\": f\"짝지은 비교, {ep} epoch 선별 - 무작위\"}\n\
+          \        j = c.get(\"judgement\", {})\n        lines.append(\"\\n**판정**\
+          \ (코드가 계산)\")\n        if \"validity\" in j:\n            lines.append(f\"\
           - {j['validity']}\")\n        for k, label in names.items():\n         \
           \   if k in j:\n                x = j[k]\n                lines.append(f\"\
           - {label}: {x['diff'] * 100:+.0f}%p (95% 신뢰구간 {x['ci95'][0] * 100:+.0f}~{x['ci95'][1]\
@@ -1675,34 +1679,37 @@ workflow:
           같은 선별 결과와 설정으로 미리 실행한 학습 결과\" if c.get(\"reused\") else \"학습 결과\"\n    \
           \    lines.append(f\"\\n**{head}** (학습 시각 {c.get('trained_at')}{', 추가 시드\
           \ ' + str(c.get('seeds_trained_at')) if c.get('seeds_trained_at') else ''})\
-          \ / {c.get('label')}\")\n        lines.append(\"\\n| 묶음 | 시범 수 | 시드 수 |\
-          \ 성공률 | 95% 신뢰구간 | 200 epoch |\\n|---|---|---|---|---|---|\")\n        for\
-          \ r in c.get(\"table\", []):\n            if \"success_rate\" not in r:\n\
-          \                lines.append(f\"| {r['set']} | {r['n_demos']} | - | 결과\
-          \ 없음 | - | - |\")\n                continue\n            e = r.get(\"early\"\
-          )\n            es = f\"{e['success_rate']:.0%}\" if e else \"-\"\n     \
-          \       lines.append(f\"| {r['set']} | {r['n_demos']} | {r.get('n_seeds',\
-          \ 1)} | {r['success_rate']:.0%} ({r['success']}/{r['rollouts']}) | {r['ci95'][0]:.0%}~{r['ci95'][1]:.0%}\
+          \ / {c.get('label')}\")\n        ep = (c.get(\"config\") or {}).get(\"early_eval_epoch\"\
+          ) or 200\n        lines.append(f\"\\n| 묶음 | 시범 수 | 시드 수 | 성공률 | 95% 신뢰구간\
+          \ | {ep} epoch |\\n|---|---|---|---|---|---|\")\n        for r in c.get(\"\
+          table\", []):\n            if \"success_rate\" not in r:\n             \
+          \   lines.append(f\"| {r['set']} | {r['n_demos']} | - | 결과 없음 | - | - |\"\
+          )\n                continue\n            e = r.get(\"early\")\n        \
+          \    es = f\"{e['success_rate']:.0%}\" if e else \"-\"\n            lines.append(f\"\
+          | {r['set']} | {r['n_demos']} | {r.get('n_seeds', 1)} | {r['success_rate']:.0%}\
+          \ ({r['success']}/{r['rollouts']}) | {r['ci95'][0]:.0%}~{r['ci95'][1]:.0%}\
           \ | {es} |\")\n        names = {\"gain_vs_random\": \"선별 - 무작위 (1주차 기준:\
           \ +5%p 이상)\", \"drop_vs_full\": \"전체 - 선별 (1주차 기준: 하락 5%p 이내)\",\n     \
-          \            \"early_gain_vs_random\": \"학습 속도, 200 epoch 선별 - 무작위\", \"\
-          same_frames\": \"같은 프레임 수에서 선별 - 무작위\",\n                 \"effect_allocation\"\
-          : \"칸별 배분 효과\", \"effect_quality\": \"품질 점수 효과\"}\n        j = c.get(\"\
-          judgement\", {})\n        lines.append(\"\\n**판정** (코드가 계산)\")\n       \
-          \ if \"validity\" in j:\n            lines.append(f\"- {j['validity']}\"\
-          )\n        for k, label in names.items():\n            if k in j:\n    \
-          \            x = j[k]\n                lines.append(f\"- {label}: {x['diff']\
-          \ * 100:+.0f}%p (95% 신뢰구간 {x['ci95'][0] * 100:+.0f}~{x['ci95'][1] * 100:+.0f}%p)\
-          \ → {x['verdict']}\")\n    elif st == \"not_trained\":\n        lines.append(\"\
-          \\n아직 학습 결과가 없습니다. 노트북에서 학습을 돌리고 결과를 저장하면 '학습 결과 보여줘'로 볼 수 있습니다.\")\n  \
-          \  else:\n        lines.append(f\"\\n학습 결과를 불러오지 못했습니다: {c.get('detail',\
-          \ st)}\")\n    if st in (\"complete\", \"partial\"):\n        brief = (\"\
-          같은 선별 결과와 설정으로 미리 실행한 학습 결과가 있다\" if c.get(\"reused\") else \"학습 결과가 있다\"\
-          ) + f\" (라벨: {c.get('label')}). 수치와 판정은 답변 아래 표에 코드가 붙인다\"\n    elif st\
-          \ == \"not_trained\":\n        brief = \"학습 계획만 준비했고 학습 결과는 아직 없다. 다음 단계는\
-          \ 노트북(코랩 또는 Kaggle)에서 학습을 실행하는 것\"\n    else:\n        brief = \"학습 결과를\
-          \ 불러오지 못했다\"\n    return {\"md\": \"\\n\".join(lines), \"status\": str(st),\
-          \ \"brief\": brief}"
+          \            \"early_gain_vs_random\": f\"학습 속도, {ep} epoch 선별 - 무작위\",\
+          \ \"same_frames\": \"같은 프레임 수에서 선별 - 무작위\",\n                 \"effect_allocation\"\
+          : \"칸별 배분 효과\", \"effect_quality\": \"품질 점수 효과\",\n                 \"paired_gain_vs_random\"\
+          : \"짝지은 비교: 선별 - 무작위\", \"paired_drop_vs_full\": \"짝지은 비교: 전체 - 선별\",\n\
+          \                 \"paired_early_gain_vs_random\": f\"짝지은 비교, {ep} epoch\
+          \ 선별 - 무작위\"}\n        j = c.get(\"judgement\", {})\n        lines.append(\"\
+          \\n**판정** (코드가 계산)\")\n        if \"validity\" in j:\n            lines.append(f\"\
+          - {j['validity']}\")\n        for k, label in names.items():\n         \
+          \   if k in j:\n                x = j[k]\n                lines.append(f\"\
+          - {label}: {x['diff'] * 100:+.0f}%p (95% 신뢰구간 {x['ci95'][0] * 100:+.0f}~{x['ci95'][1]\
+          \ * 100:+.0f}%p) → {x['verdict']}\")\n    elif st == \"not_trained\":\n\
+          \        lines.append(\"\\n아직 학습 결과가 없습니다. 노트북에서 학습을 돌리고 결과를 저장하면 '학습 결과\
+          \ 보여줘'로 볼 수 있습니다.\")\n    else:\n        lines.append(f\"\\n학습 결과를 불러오지\
+          \ 못했습니다: {c.get('detail', st)}\")\n    if st in (\"complete\", \"partial\"\
+          ):\n        brief = (\"같은 선별 결과와 설정으로 미리 실행한 학습 결과가 있다\" if c.get(\"reused\"\
+          ) else \"학습 결과가 있다\") + f\" (라벨: {c.get('label')}). 수치와 판정은 답변 아래 표에 코드가\
+          \ 붙인다\"\n    elif st == \"not_trained\":\n        brief = \"학습 계획만 준비했고\
+          \ 학습 결과는 아직 없다. 다음 단계는 노트북(코랩 또는 Kaggle)에서 학습을 실행하는 것\"\n    else:\n   \
+          \     brief = \"학습 결과를 불러오지 못했다\"\n    return {\"md\": \"\\n\".join(lines),\
+          \ \"status\": str(st), \"brief\": brief}"
         code_language: python3
         outputs:
           brief:
