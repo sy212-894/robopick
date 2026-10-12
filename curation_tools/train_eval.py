@@ -298,15 +298,73 @@ def store_results(results_path: Path) -> Path:
     return dst
 
 
+def paired_diff(doc: dict, a: str, b: str, z: float = 1.96) -> dict:
+    """같은 평가 위치끼리 짝지은 a - b 비교 (results_paired.json).
+
+    평가 시드가 고정이라 i번째 시범은 모든 묶음·시드에서 같은 캔 초기 위치다. 같은 시드의 같은 위치끼리
+    성공(1)/실패(0) 차이를 모으면, 위치마다 다른 난이도가 상쇄돼 짝짓지 않은 비교보다 신뢰구간이 좁아진다.
+    판정 규칙은 diff_runs와 같다: 신뢰구간이 0을 넘고, 시드가 2개 이상이면 모든 시드에서 같은 방향일 때만 "차이 있음".
+    """
+    runs = doc["runs"]
+    seeds = sorted({r["seed"] for r in runs.values() if r["set"] == a} & {r["seed"] for r in runs.values() if r["set"] == b})
+    if not seeds:
+        raise ValueError(f"{a}와 {b}에 공통 시드가 없다")
+    d, per, counts = [], {}, {"a_only": 0, "b_only": 0, "both": 0, "neither": 0}
+    for s in seeds:
+        oa, ob = runs[f"{a}|seed{s}"]["outcomes"], runs[f"{b}|seed{s}"]["outcomes"]
+        if len(oa) != len(ob):
+            raise ValueError(f"시드 {s}의 평가 횟수가 다르다")
+        diffs = [x - y for x, y in zip(oa, ob)]
+        d += diffs
+        per[s] = round(sum(diffs) / len(diffs), 4)
+        for x, y in zip(oa, ob):
+            counts["both" if x and y else "a_only" if x else "b_only" if y else "neither"] += 1
+    n = len(d)
+    m = sum(d) / n
+    se = math.sqrt(sum((x - m) ** 2 for x in d) / (n - 1) / n) if n > 1 else 0.0
+    lo, hi = m - z * se, m + z * se
+    verdict = "차이 있음 (높음)" if lo > 0 else ("더 나쁨" if hi < 0 else "구분 불가")
+    out = {"diff": round(m, 4), "ci95": [round(lo, 4), round(hi, 4)], "verdict": verdict, "n_pairs": n,
+           "n_seeds": len(seeds), "per_seed_diff": per, "pairs": counts}
+    if len(seeds) >= 2 and verdict != "구분 불가":
+        same = all(v > 0 for v in per.values()) if m > 0 else all(v < 0 for v in per.values())
+        if not same:
+            out["verdict"], out["note"] = "구분 불가", "신뢰구간은 0을 넘지만 시드마다 방향이 다름"
+    return out
+
+
+def _meaning(d: dict, a: str, b: str) -> str:
+    """판정을 a, b 이름으로 풀어 쓴다 ("더 나쁨"이 어느 쪽 이야기인지 헷갈리지 않게)."""
+    if d["verdict"] == "차이 있음 (높음)":
+        return f"{a} 쪽이 {b}보다 높음 ({d['diff'] * 100:+.1f}%p)"
+    if d["verdict"] == "더 나쁨":
+        return f"{a} 쪽이 {b}보다 낮음 ({d['diff'] * 100:+.1f}%p)"
+    return f"{a}와 {b}를 구분할 수 없음"
+
+
+def paired_report(doc: dict) -> dict:
+    """짝지은 재평가 결과로 1주차 기준 두 비교를 다시 판정한다."""
+    gain = paired_diff(doc, "curated_150", "random_150")
+    drop = paired_diff(doc, "train", "curated_150")
+    return {"label": f"짝지은 비교 (같은 평가 위치, 시드 {len({r['seed'] for r in doc['runs'].values()})}개, {doc.get('epoch')} epoch)",
+            "success": {k: f"{r['success']}/{len(r['outcomes'])}" for k, r in sorted(doc["runs"].items())},
+            "gain_vs_random": {**gain, "meaning": _meaning(gain, "선별", "무작위"), "question": "선별 - 무작위 (1주차: +5%p 이상)"},
+            "drop_vs_full": {**drop, "meaning": _meaning(drop, "전체", "선별"), "question": "전체 - 선별 (1주차: 하락 5%p 이내)"}}
+
+
 def main() -> None:
     import argparse
     p = argparse.ArgumentParser(description="코랩 학습 결과를 저장하고 비교표를 출력한다")
     p.add_argument("--save", type=Path, help="코랩 RESULTS_JSON을 저장한 파일 (시드 1)")
     p.add_argument("--save-seeds", type=Path, help="Kaggle 추가 시드 결과 results_seeds.json")
+    p.add_argument("--paired", type=Path, help="짝지은 재평가 결과 results_paired.json (판정만 출력)")
     p.add_argument("--runs-root", type=Path, default=Path("C:/curation-data/runs"))
     a = p.parse_args()
+    if a.paired:
+        print(json.dumps(paired_report(json.loads(a.paired.read_text(encoding="utf-8"))), ensure_ascii=False, indent=1))
+        return
     if not (a.save or a.save_seeds):
-        p.error("--save 또는 --save-seeds 중 하나는 필요하다")
+        p.error("--save, --save-seeds, --paired 중 하나는 필요하다")
     dst = save_results(a.save, a.runs_root) if a.save else save_seed_results(a.save_seeds, a.runs_root)
     out = collect(dst.parent.parent)
     print(json.dumps({k: out[k] for k in ("status", "label", "table", "judgement")}, ensure_ascii=False, indent=1))

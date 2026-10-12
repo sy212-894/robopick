@@ -183,3 +183,30 @@ def test_square_plan(tmp_path):
     assert p["dataset"] == "square_mh" and p["n_sets"] == 5
     body = json.loads(zlib.decompress(base64.b64decode((s / "plan" / "plan_b64.txt").read_text())))
     assert body["hf_path"] == "v1.5/square/mh/low_dim_v15.hdf5" and body["dataset"] == "square_mh"
+
+
+def _paired_doc(outcomes: dict) -> dict:
+    return {"epoch": 400, "runs": {f"{k}|seed{s}": {"set": k, "seed": s, "outcomes": o, "success": sum(o)}
+                                   for (k, s), o in outcomes.items()}}
+
+
+def test_paired_narrower_than_unpaired():
+    # 같은 위치에서 대부분 함께 성공·실패하고, 선별만 성공한 위치가 조금 있는 경우: 짝지으면 신뢰구간이 좁아진다
+    base = [1] * 35 + [0] * 15
+    cur = [1] * 35 + [1] * 4 + [0] * 11   # 무작위가 실패한 위치 중 4곳에서 선별만 성공
+    doc = _paired_doc({("curated_150", s): cur for s in (1, 2, 3)} | {("random_150", s): base for s in (1, 2, 3)})
+    p = T.paired_diff(doc, "curated_150", "random_150")
+    u = T.diff({"success": 3 * sum(cur), "rollouts": 150}, {"success": 3 * sum(base), "rollouts": 150})
+    assert p["diff"] == u["diff"] == 0.08
+    assert p["ci95"][1] - p["ci95"][0] < u["ci95"][1] - u["ci95"][0]
+    assert p["verdict"] == "차이 있음 (높음)" and u["verdict"] == "구분 불가"
+    assert p["pairs"] == {"a_only": 12, "b_only": 0, "both": 105, "neither": 33}
+
+
+def test_paired_requires_same_direction():
+    a, b = [1] * 30 + [0] * 20, [1] * 20 + [0] * 30
+    doc = _paired_doc({("curated_150", 1): a, ("random_150", 1): b, ("curated_150", 2): a, ("random_150", 2): b,
+                       ("curated_150", 3): b, ("random_150", 3): [1] * 22 + [0] * 28})
+    p = T.paired_diff(doc, "curated_150", "random_150")
+    assert p["ci95"][0] > 0 and p["per_seed_diff"][3] < 0
+    assert p["verdict"] == "구분 불가" and "방향" in p["note"]
