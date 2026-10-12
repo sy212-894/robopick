@@ -20,3 +20,8 @@
 
 ## 진행 상황
 - 2026-10-12 06:42 전부 완료: 시드 2, 3 x 5개 묶음 (10번), 시드 1 재실행 x 3개 묶음. 결과는 `results/` 와 `docs/05_train_evaluate.md`
+
+## Kaggle 노트북 관리 (2026-10-12)
+- 저장소 노트북 `kaggle/02_seeds.ipynb`이 기준이다. 수정은 `kaggle/build_notebook.py`로 저장소에서 하고, Kaggle에는 File → Import Notebook → GitHub(브랜치 선택)로 가져온다. Kaggle 계정은 GitHub와 연결됨 (비공개 저장소 포함)
+- Kaggle 편집 화면에서 직접 셀을 덧붙이지 않는다 (10/12 새벽에 그렇게 했다가 두 노트북이 어긋났음)
+- 셀 8(시드 1 재실행), 셀 9(짝지어 비교 재평가)는 `RUN_SEED1`, `RUN_PAIRED`를 True로 바꿀 때만 돈다
