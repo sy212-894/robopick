@@ -457,6 +457,10 @@ def paired_report(doc: dict) -> dict:
         if a and b and a in present and b in present:
             d = paired_diff(doc, a, b)
             out[key] = {**d, "meaning": _meaning(d, na, nb), "question": q}
+            if key == "drop_vs_full":
+                # 1주차 기준은 "하락 5%p 이내". 신뢰구간 위쪽 끝(전체가 더 높은 쪽)이 5%p 이하이면 기준 확정.
+                # 짝짓지 않은 비교(compare)의 confirmed와 같은 규칙이다 (5-2에서 정함)
+                out[key].update({"target": MAX_DROP, "confirmed": d["ci95"][1] <= MAX_DROP})
     return out
 
 

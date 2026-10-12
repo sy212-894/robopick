@@ -27,6 +27,7 @@ export type Judge = {
   note?: string
   question?: string
   meaning?: string
+  confirmed?: boolean // 하락 기준: 신뢰구간 위쪽 끝이 기준 이내
 }
 
 export type TableRow = {
