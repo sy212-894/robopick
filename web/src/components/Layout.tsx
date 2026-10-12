@@ -72,8 +72,7 @@ export default function Layout() {
       </header>
       <Outlet />
       <footer className="border-t border-line">
-        <div className="mx-auto flex max-w-[1200px] flex-wrap justify-between gap-4 p-8 text-[13px] text-sub">
-          <span>서강대학교 실전AI에이전트설계와구축 · 방서영 · 2026</span>
+        <div className="mx-auto flex max-w-[1200px] flex-wrap justify-end gap-4 p-8 text-[13px] text-sub">
           <span className="font-mono text-xs">Dify 1.17 · robomimic 0.5 · robosuite 1.5.1</span>
         </div>
       </footer>
