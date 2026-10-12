@@ -1,4 +1,4 @@
-﻿"""kaggle/02_seeds.ipynb 생성: 시드 1과 같은 학습 계획을 시드 2, 3으로 다시 학습·평가한다 (Kaggle GPU)."""
+"""kaggle/02_seeds.ipynb 생성: 시드 1과 같은 학습 계획을 시드 2, 3으로 다시 학습·평가한다 (Kaggle GPU)."""
 import json
 import sys
 import textwrap
@@ -164,10 +164,11 @@ if RUN_SEED1:
 """),
     md("k9md", """
 ### 짝지어 비교 재평가 (선택)
-저장된 400 epoch 모델(선별·무작위·전체 x 시드 1~3)로 평가만 다시 하면서 캔 위치 50곳의 성공/실패를 기록한다 → `results_paired.json`. 행동 샘플링 난수도 에피소드마다 고정한다.
+저장된 400 epoch 모델(5개 묶음 x 시드 1~3)로 평가만 다시 하면서 캔 위치 100곳의 성공/실패를 기록한다 → `results_paired.json`. 행동 샘플링 난수도 에피소드마다 고정한다.
+2026-10-12: 1주차 최종 평가 기준(시드 3개 x 시험 100개)에 맞춰 50곳 → 100곳, 3묶음 → 5묶음으로 늘렸다. 이미 평가한 50곳은 다시 돌려도 같은 결과라(시작 전에 처음 5곳으로 확인) 51~100번만 이어서 평가한다. 시드 1 모델이 없는 묶음은 같은 계획·시드로 학습만 다시 한다.
 같은 위치끼리 비교하면 위치 난이도 차이가 상쇄돼 신뢰구간이 좁아진다 (`curation_tools.train_eval.paired_diff`). 코드 원본: `kaggle/paired_eval.py`.
 """),
-    code("k9", "# 9. (선택) 짝지어 비교 재평가: 필요할 때만 RUN_PAIRED = True\nRUN_PAIRED = False\nif RUN_PAIRED:\n"
+    code("k9", "# 9. (선택) 짝지어 비교 재평가: 필요할 때만 RUN_PAIRED = True\nRUN_PAIRED = True   # 2026-10-12 최종 평가(100곳)용으로 켬. 셀 7은 끝난 실행을 건너뛰어 학습을 다시 하지 않는다\nif RUN_PAIRED:\n"
          + textwrap.indent((repo / "kaggle/paired_eval.py").read_text(encoding="utf-8"), "    ")),
 ]
 nb = {"cells": cells, "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
