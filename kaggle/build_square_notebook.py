@@ -35,7 +35,7 @@ cells = [
 
 - 데이터: robomimic Square(너트를 기둥에 끼우기) Multi-Human 300개. 학습 계획은 로컬 `train_evaluate(prepare)`가 만든 `plan_b64.txt`
 - MODE = "pilot": 전체(train)·무작위 150 두 묶음, 시드 1, 100·200·300·400 epoch마다 10회 평가 → 성공률이 바닥/천장인지, 시간이 얼마나 드는지 확인
-- MODE = "main": 5개 묶음 x 시드 1·2·3, 400 epoch 30회 + 600 epoch 50회 평가 (파일럿에서 300 epoch까지 0%, 400 epoch 5/10이라 늘림). 핵심 3묶음(선별·무작위·전체)의 시드 1부터 돈다
+- MODE = "main": 핵심 3묶음(선별·무작위·전체) x 시드 1·2·3, 400 epoch 30회 + 600 epoch 50회 평가 (파일럿에서 300 epoch까지 0%, 400 epoch 5/10이라 600으로 늘림). 본 실험 시드 1에서 성공률이 낮고 epoch마다 크게 흔들려, 나머지 2묶음은 빼고 Square는 보조 결과로 둔다
 - 평가: 물체 초기 위치와 행동 샘플링 난수를 에피소드마다 고정 (같은 모델은 언제 평가해도 같은 결과). 위치별 성공/실패를 기록해 짝지어 비교에 쓴다
 - 결과(`results_{MODE}_{지문}.json`)와 체크포인트(`ckpt_{지문}/`)는 `/kaggle/working/square/` (세션 설정 Persistence = Files only). 꺼지면 다시 Run All → 끝난 실행은 건너뛰고, 평가 도중 끊긴 실행은 저장된 모델로 평가만 한다
 """),
@@ -58,7 +58,8 @@ if MODE == 'pilot':
 else:
     CORE = ['curated_150', 'random_150', 'train']
     EXTRA = ['random_frames', 'stratified_random_150']
-    JOBS = [(n, s) for group in (CORE, EXTRA) for s in (1, 2, 3) for n in group]
+    # 6-5 (2026-10-12): 시드 1에서 성공률이 낮고 epoch마다 크게 흔들려 Square는 보조 결과로 두고 핵심 3묶음만 돌린다
+    JOBS = [(n, s) for s in (1, 2, 3) for n in CORE]
     EVAL_N = {{PLAN['config']['early_eval_epoch']: PLAN['config']['early_eval_n'], PLAN['config']['num_epochs']: PLAN['config']['rollout_n']}}
 print('[결과] 데이터', PLAN['dataset'], '| 지문', PLAN['fp'], '| 모드', MODE, '| 실행', len(JOBS), JOBS)
 print('[결과] 설정', PLAN['config'], '| 평가', EVAL_N)
