@@ -23,9 +23,14 @@ DATASETS = {  # 데이터셋 이름 → Hugging Face 경로 (노트북이 이 �
 # 200 epoch 시점 차이가 가장 커서(7/10 vs 3/10) 학습 속도 비교용 중간 평가를 둔다. LLM이 바꾸지 못하도록 도구 인자로 받지 않는다
 TRAIN_CONFIG = {"algo": "bc_rnn", "num_epochs": 400, "steps_per_epoch": 100, "batch_size": 100,
                 "seed": 1, "rollout_n": 50, "rollout_horizon": 400, "early_eval_epoch": 200, "early_eval_n": 30}
-# Square는 Can과 같은 설정으로 시작한다 (파일럿에서 성공률이 바닥이면 epoch를 늘리는 식으로 조정, 6-4)
-TRAIN_CONFIGS = {"can_mh": TRAIN_CONFIG, "square_mh": dict(TRAIN_CONFIG)}
+# Square 파일럿(6-4, 2026-10-12): 전체·무작위 모두 300 epoch까지 0/10, 400 epoch에서 5/10으로 막 학습되기 시작.
+# 400 epoch는 학습이 덜 된 상태라 600 epoch로 늘리고, 200 epoch는 모두 0%라 중간 평가를 400 epoch로 옮긴다
+TRAIN_CONFIGS = {"can_mh": TRAIN_CONFIG,
+                 "square_mh": dict(TRAIN_CONFIG, num_epochs=600, early_eval_epoch=400)}
 MINUTES_PER_SET = 22  # 본 실험 측정(2026-10-12, T4): BC-RNN 학습 약 10분 + 평가(30회 + 50회) 약 12분
+# Square: 파일럿 측정(400 epoch 학습 8분, 평가 1회 약 11초)으로 600 epoch 학습 12분 + 평가(30회 + 50회) 15분
+MINUTES_BY_DATASET = {"can_mh": MINUTES_PER_SET, "square_mh": 27}
+NOTEBOOKS = {"can_mh": "colab/01_train_eval.ipynb", "square_mh": "kaggle/03_square.ipynb"}
 TARGET_GAIN = 0.05     # 1주차: 같은 개수 무작위보다 +5%p
 MAX_DROP = 0.05        # 1주차: 전체 데이터 대비 하락 5%p 이내
 MIN_TRAIN_SUCCESS = 0.2  # 전체 데이터 기준선이 이보다 낮으면 판정 불가 (학습 자체가 실패)
@@ -84,8 +89,8 @@ def prepare(run_dir: Path, runs_root: Path, config: dict | None = None) -> dict:
     return {"run_id": sel["run_id"], "dataset": name, "fingerprint": fp, "status": "prepared",
             "n_sets": len(sets), "order": plan["order"],
             "sets": {k: len(v) for k, v in sets.items()},
-            "config": config, "est_minutes": len(sets) * MINUTES_PER_SET,
-            "notebook": "colab/01_train_eval.ipynb",
+            "config": config, "est_minutes": len(sets) * MINUTES_BY_DATASET[name],
+            "notebook": NOTEBOOKS[name],
             "already_trained": (RESULTS_STORE / f"{fp}.json").exists()}
 
 

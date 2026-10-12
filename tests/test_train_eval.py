@@ -181,6 +181,8 @@ def test_square_plan(tmp_path):
     assert (s / "square_mh_curated.hdf5").exists()
     p = T.prepare(s, runs)
     assert p["dataset"] == "square_mh" and p["n_sets"] == 5
+    assert p["config"]["num_epochs"] == 600 and p["config"]["early_eval_epoch"] == 400  # 파일럿(6-4) 결과로 늘림
+    assert p["notebook"] == "kaggle/03_square.ipynb" and p["est_minutes"] == 5 * 27
     body = json.loads(zlib.decompress(base64.b64decode((s / "plan" / "plan_b64.txt").read_text())))
     assert body["hf_path"] == "v1.5/square/mh/low_dim_v15.hdf5" and body["dataset"] == "square_mh"
 

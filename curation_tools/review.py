@@ -17,7 +17,7 @@ import json
 from pathlib import Path
 
 from curation_tools.select_demos import FRAME_TOLERANCE
-from curation_tools.train_eval import MINUTES_PER_SET, TRAIN_CONFIG
+from curation_tools.train_eval import MINUTES_BY_DATASET, TRAIN_CONFIGS
 
 
 def review(run_dir: Path, runs_root: Path) -> dict:
@@ -74,9 +74,10 @@ def review(run_dir: Path, runs_root: Path) -> dict:
     plan_sets = list(sets) + ["train"]  # 학습 비교 묶음: 선택 결과, 무작위 2종, 전체
     train_ids = [d for d in analysis["demos"] if d.get("split") == "train"]
     name = analysis["dataset"].get("name", "can_mh")
-    note = f"코랩 T4 본 실험 측정 기준(묶음당 약 {MINUTES_PER_SET}분), {TRAIN_CONFIG['algo'].upper()} {TRAIN_CONFIG['num_epochs']} epoch, 시드 1개"
-    if name != "can_mh":
-        note = f"Can 측정값을 그대로 쓴 추정(묶음당 약 {MINUTES_PER_SET}분). 이 데이터는 시범이 더 길어 실제로는 더 걸릴 수 있음, 파일럿으로 확인 예정"
+    cfg = TRAIN_CONFIGS.get(name, TRAIN_CONFIGS["can_mh"])
+    minutes = MINUTES_BY_DATASET.get(name, MINUTES_BY_DATASET["can_mh"])
+    where = "코랩 T4 본 실험 측정" if name == "can_mh" else "Kaggle T4 파일럿 측정"
+    note = f"{where} 기준(묶음당 약 {minutes}분), {cfg['algo'].upper()} {cfg['num_epochs']} epoch, 시드 1개"
     return {
         "run_id": sel["run_id"],
         "analysis_run_id": sel["analysis_run_id"],
@@ -89,5 +90,5 @@ def review(run_dir: Path, runs_root: Path) -> dict:
         "sets": sets,
         "train_set": {"n_demos": len(train_ids), "total_frames": int(sum(d["length"] for d in train_ids))},
         "training_plan": {"filter_keys": plan_sets, "n_sets": len(plan_sets),
-                          "est_minutes": len(plan_sets) * MINUTES_PER_SET, "note": note},
+                          "est_minutes": len(plan_sets) * minutes, "note": note},
     }

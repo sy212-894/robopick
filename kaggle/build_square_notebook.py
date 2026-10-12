@@ -4,7 +4,9 @@ Can에서 배운 점을 처음부터 넣었다.
 - 평가 시드: 물체 초기 위치(np)와 행동 샘플링(torch)을 에피소드마다 EVAL_SEED + i로 고정 → 언제 다시 평가해도 같은 결과,
   묶음끼리 같은 위치·같은 난수라 짝지어 비교 가능. 위치별 성공(1)/실패(0)를 처음부터 기록한다
 - 체크포인트: 결과는 실행(묶음 x 시드)마다, 모델은 평가 전에 /kaggle/working/square 아래 저장 → 끊겨도 이어서 실행
-- 모드: pilot(전체·무작위, 시드 1, 100 epoch마다 10회) / main(5개 묶음 x 시드 1~3, 200 epoch 30회 + 400 epoch 50회)
+- 모드: pilot(전체·무작위, 시드 1, 100 epoch마다 10회) / main(5개 묶음 x 시드 1~3, 계획의 중간·최종 epoch 평가)
+- 모델 저장 간격은 평가 epoch들의 최대공약수 (평가 시점이 [400, 600]이어도 600 모델이 남게)
+- 체크포인트 폴더와 결과 파일 이름에 계획 지문을 붙여, 설정이 바뀐 계획끼리 모델·결과가 섞이지 않게 한다
 
 사용: python kaggle/build_square_notebook.py . C:/curation-data/runs/<square 선별 run>/plan/plan_b64.txt
 """
@@ -33,22 +35,22 @@ cells = [
 
 - 데이터: robomimic Square(너트를 기둥에 끼우기) Multi-Human 300개. 학습 계획은 로컬 `train_evaluate(prepare)`가 만든 `plan_b64.txt`
 - MODE = "pilot": 전체(train)·무작위 150 두 묶음, 시드 1, 100·200·300·400 epoch마다 10회 평가 → 성공률이 바닥/천장인지, 시간이 얼마나 드는지 확인
-- MODE = "main": 5개 묶음 x 시드 1·2·3, 200 epoch 30회 + 400 epoch 50회 평가
+- MODE = "main": 5개 묶음 x 시드 1·2·3, 400 epoch 30회 + 600 epoch 50회 평가 (파일럿에서 300 epoch까지 0%, 400 epoch 5/10이라 늘림). 핵심 3묶음(선별·무작위·전체)의 시드 1부터 돈다
 - 평가: 물체 초기 위치와 행동 샘플링 난수를 에피소드마다 고정 (같은 모델은 언제 평가해도 같은 결과). 위치별 성공/실패를 기록해 짝지어 비교에 쓴다
-- 결과와 체크포인트는 `/kaggle/working/square/` (세션 설정 Persistence = Files only). 꺼지면 다시 Run All → 끝난 실행은 건너뛰고, 평가 도중 끊긴 실행은 저장된 모델로 평가만 한다
+- 결과(`results_{MODE}_{지문}.json`)와 체크포인트(`ckpt_{지문}/`)는 `/kaggle/working/square/` (세션 설정 Persistence = Files only). 꺼지면 다시 Run All → 끝난 실행은 건너뛰고, 평가 도중 끊긴 실행은 저장된 모델로 평가만 한다
 """),
     code("s1", src["c1"]),
     code("s2", src["c2"].replace("(10/11 코랩에서 확인한 문제 3가지를 반영)", "(코랩 노트북과 같은 고정 버전, 작업 폴더만 /kaggle/temp)")
          .replace("%cd /content", "WORK = '/kaggle/temp'\n%cd {WORK}")),
     code("s3", f"""
 # 3. 학습 계획 + 모드
-MODE = 'pilot'   # 'pilot' 또는 'main'
+MODE = 'main'   # 'pilot' 또는 'main' (파일럿은 끝남, 6-4)
 PLAN_B64 = '{plan_b64}'
 import json, base64, zlib, os
 PLAN = json.loads(zlib.decompress(base64.b64decode(PLAN_B64)))
 SETS = {{k: [f'demo_{{i}}' for i in v] for k, v in PLAN['sets'].items()}}
 OUTDIR = '/kaggle/working/square'
-CKPT = f'{{OUTDIR}}/ckpt'
+CKPT = f'{{OUTDIR}}/ckpt_{{PLAN["fp"]}}'
 os.makedirs(CKPT, exist_ok=True)
 if MODE == 'pilot':
     JOBS = [('train', 1), ('random_150', 1)]
@@ -73,7 +75,7 @@ if not os.path.exists(DATA):
     code("s5", src["c5"].replace("PDATA = '/content/data/plan.hdf5'", "PDATA = f'{WORK}/data/plan.hdf5'")),
     code("s6", """
 # 6. 학습·평가 함수 (평가 난수 고정, 위치별 결과 기록, 체크포인트)
-import contextlib, glob, shutil, time, torch, numpy as np
+import contextlib, glob, math, shutil, time, torch, numpy as np
 from robomimic.config import config_factory
 from robomimic.scripts.train import train
 import robomimic.utils.file_utils as FileUtils
@@ -146,7 +148,7 @@ def run_set(set_name, cfg, eval_n):
     else:
         out_dir = f"{WORK}/runs/{set_name}_s{seed}"
         shutil.rmtree(out_dir, ignore_errors=True)
-        save_every = eval_epochs[1] - eval_epochs[0] if len(eval_epochs) > 1 and eval_epochs[0] * len(eval_epochs) == eval_epochs[-1] else eval_epochs[0]
+        save_every = math.gcd(*eval_epochs)   # 모든 평가 epoch에 모델이 저장되게
         t0 = time.time()
         os.makedirs(f'{WORK}/logs', exist_ok=True)
         with open(f"{WORK}/logs/{set_name}_s{seed}.log", 'w') as lf, contextlib.redirect_stdout(lf), contextlib.redirect_stderr(lf):
@@ -169,7 +171,7 @@ print('[결과] 함수 준비, 장치', DEV)
 # 7. 실행: (묶음, 시드) 하나 끝날 때마다 결과 파일에 저장, 끝난 것은 건너뜀
 import datetime
 KST = datetime.timezone(datetime.timedelta(hours=9))
-OUT = f'{OUTDIR}/results_{MODE}.json'
+OUT = f"{OUTDIR}/results_{MODE}_{PLAN['fp']}.json"
 gpu = torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'cpu'
 doc = json.load(open(OUT)) if os.path.exists(OUT) else {
     'fingerprint': PLAN['fp'], 'run_id': PLAN['run_id'], 'dataset': PLAN['dataset'], 'mode': MODE, 'platform': 'kaggle',
