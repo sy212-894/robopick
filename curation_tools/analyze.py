@@ -1,7 +1,8 @@
 """analyze_data: robomimic hdf5 데이터셋을 읽어 시범별 특징과 작업 조건 분포를 계산한다.
 
-- 작업 조건: 캔 초기 위치 (x, y)를 분위수 기준 격자로 나눈다 (기본 3x3).
-  캔은 원통이라 수직축 회전(yaw)이 잡기에 거의 영향이 없으므로, yaw는 계산만 하고 조건에는 쓰지 않는다.
+- 작업 조건: 물체(Can은 캔, Square는 너트) 초기 위치 (x, y)를 분위수 기준 격자로 나눈다 (기본 3x3).
+  수직축 회전(yaw)은 두 데이터 모두 약 ±7도로 범위가 작아 계산만 하고 조건에는 쓰지 않는다
+  (Can은 원통이라 원래 영향이 적고, Square는 2026-10-12 데이터 확인에서 ±7도로 측정).
 - 품질 후보 신호: 경로 길이, 움직임 거칠기, 정지 비율, 그리퍼 개폐 횟수.
 - 숙련도 라벨(worse/okay/better)은 선별에 쓰지 않고, 품질 신호가 맞는지 검증하는 데만 쓴다.
 
@@ -21,6 +22,7 @@ import numpy as np
 DEFAULT_OUT_ROOT = Path("C:/curation-data/runs")
 QUALITY_LEVELS = ("worse", "okay", "better")
 QUALITY_SIGNALS = ("path_length", "action_roughness", "idle_ratio", "gripper_switches")
+OBJECT_LABEL = {"PickPlaceCan": "캔", "NutAssemblySquare": "너트"}  # 환경 이름 → 그림·설명에 쓸 물체 이름
 IDLE_THRESHOLD_M = 0.001  # 한 프레임(1/20초) 동안 팔 끝 이동이 1mm 미만이면 정지로 본다 (= 2cm/s 미만)
 
 
@@ -76,8 +78,13 @@ def demo_features(demo: h5py.Group) -> dict:
     }
 
 
-def assign_conditions(demos: list[dict], grid: int) -> dict:
-    """캔 초기 위치 (x, y)를 분위수 경계로 grid x grid 칸에 나눈다."""
+def dataset_name(path: Path) -> str:
+    """파일 이름에서 데이터셋 이름을 정한다 (can_mh_low_dim.hdf5 → can_mh)."""
+    return Path(path).stem.replace("_low_dim", "")
+
+
+def assign_conditions(demos: list[dict], grid: int, obj: str = "캔") -> dict:
+    """물체 초기 위치 (x, y)를 분위수 경계로 grid x grid 칸에 나눈다."""
     xs = np.array([d["init_x"] for d in demos])
     ys = np.array([d["init_y"] for d in demos])
     qs = np.linspace(0, 1, grid + 1)
@@ -88,7 +95,7 @@ def assign_conditions(demos: list[dict], grid: int) -> dict:
     for d, i, j in zip(demos, xi, yi):
         d["condition"] = f"x{i}y{j}"
     return {"grid": grid, "x_edges": x_edges.round(4).tolist(), "y_edges": y_edges.round(4).tolist(),
-            "basis": "캔 초기 위치 (x, y) 분위수 격자. yaw는 원통 대칭이라 제외"}
+            "basis": f"{obj} 초기 위치 (x, y) 분위수 격자. yaw는 범위가 약 ±7도로 작아 제외"}
 
 
 def condition_stats(demos: list[dict], grid: int) -> list[dict]:
@@ -146,9 +153,10 @@ def analyze(dataset: Path, grid: int = 3) -> dict:
             d = {"id": name, **demo_features(f["data"][name]), **labels.get(name, {})}
             demos.append(d)
         env_name = json.loads(f["data"].attrs["env_args"]).get("env_name")
-    cond_def = assign_conditions(demos, grid)
+    obj = OBJECT_LABEL.get(env_name, "물체")
+    cond_def = assign_conditions(demos, grid, obj)
     return {
-        "dataset": {"path": str(dataset), "sha256": _sha256(dataset), "env_name": env_name,
+        "dataset": {"name": dataset_name(dataset), "path": str(dataset), "sha256": _sha256(dataset), "env_name": env_name, "object": obj,
                     "n_demos": len(demos), "total_frames": int(sum(d["length"] for d in demos))},
         "condition_definition": cond_def,
         "conditions": condition_stats(demos, grid),
@@ -162,7 +170,7 @@ def summarize(result: dict) -> dict:
     lengths = [d["length"] for d in result["demos"]]
     return {
         "run_id": result["run_id"],
-        "dataset": {k: result["dataset"][k] for k in ("env_name", "n_demos", "total_frames")},
+        "dataset": {k: result["dataset"][k] for k in ("name", "env_name", "n_demos", "total_frames") if k in result["dataset"]},
         "length": {"min": int(min(lengths)), "mean": round(float(np.mean(lengths)), 1), "max": int(max(lengths))},
         "condition_definition": result["condition_definition"],
         "conditions": [{k: c[k] for k in ("condition", "count", "mean_length", "total_frames")} for c in result["conditions"]],
@@ -189,9 +197,10 @@ def plot_positions(result: dict, path: Path) -> None:
         ax.axvline(e, color="gray", ls="--", lw=0.8)
     for e in cd["y_edges"][1:-1]:
         ax.axhline(e, color="gray", ls="--", lw=0.8)
-    ax.set_xlabel("캔 초기 위치 x (m)")
-    ax.set_ylabel("캔 초기 위치 y (m)")
-    ax.set_title(f"캔 초기 위치와 작업 조건 ({cd['grid']}x{cd['grid']}) · 시범 {result['dataset']['n_demos']}개")
+    obj = result["dataset"].get("object", "캔")
+    ax.set_xlabel(f"{obj} 초기 위치 x (m)")
+    ax.set_ylabel(f"{obj} 초기 위치 y (m)")
+    ax.set_title(f"{obj} 초기 위치와 작업 조건 ({cd['grid']}x{cd['grid']}) · 시범 {result['dataset']['n_demos']}개")
     # 색은 조건을 뜻하므로, 숙련도 범례는 모양만 보이도록 회색 마커로 따로 그린다
     from matplotlib.lines import Line2D
     handles = [Line2D([], [], marker=m, ls="", color="dimgray", label=q) for q, m in markers.items()]

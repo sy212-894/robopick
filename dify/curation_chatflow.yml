@@ -20,13 +20,14 @@ workflow:
   features:
     file_upload:
       enabled: false
-    opening_statement: 'robomimic Can(Multi-Human) 시범 300개에서 학습에 쓸 시범을 골라 드립니다.
+    opening_statement: 'robomimic Can 또는 Square(Multi-Human) 시범 300개에서 학습에 쓸 시범을 골라
+      드립니다.
 
 
       할 수 있는 일: 작업 조건별 분포 분석, 예산(10~270개)에 맞춘 선별과 검수, 학습 승인 요청, 선별 근거 질문에 답하기 (출처
       표시)
 
-      할 수 없는 일: 다른 데이터셋, 대화 중 학습 실시간 실행'
+      할 수 없는 일: Can·Square 외 다른 데이터셋, 대화 중 학습 실시간 실행'
     retriever_resource:
       enabled: true
     sensitive_word_avoidance:
@@ -35,6 +36,7 @@ workflow:
       enabled: false
     suggested_questions:
     - can 데이터로 학습할 시범 150개 골라줘
+    - square 데이터로 학습할 시범 150개 골라줘
     - 작업 조건별로 시범이 어떻게 분포돼 있는지만 보여줘
     - 일부 시범만 골라서 학습하려면 어떻게 설정해?
     suggested_questions_after_answer:
@@ -148,12 +150,68 @@ workflow:
         isInLoop: false
         iteration_id: null
         loop_id: null
+        sourceType: if-else
+        targetType: llm
+      id: ask_result-false-translate
+      source: ask_result
+      sourceHandle: 'false'
+      target: translate
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: if-else
+        targetType: tool
+      id: ask_result-rate-coll2
+      source: ask_result
+      sourceHandle: rate
+      target: coll2
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: if-else
+        targetType: tool
+      id: ask_result-result-coll2
+      source: ask_result
+      sourceHandle: result
+      target: coll2
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
         sourceType: tool
         targetType: code
       id: coll-source-train_md
       source: coll
       sourceHandle: source
       target: train_md
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: tool
+        targetType: code
+      id: coll2-source-res_md
+      source: coll2
+      sourceHandle: source
+      target: res_md
       targetHandle: target
       type: custom
       zIndex: 0
@@ -246,6 +304,20 @@ workflow:
         isInLoop: false
         iteration_id: null
         loop_id: null
+        sourceType: code
+        targetType: answer
+      id: res_md-source-ans_result
+      source: res_md
+      sourceHandle: source
+      target: ans_result
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
         sourceType: knowledge-retrieval
         targetType: code
       id: retrieval-source-ctx
@@ -330,6 +402,20 @@ workflow:
         isInLoop: false
         iteration_id: null
         loop_id: null
+        sourceType: start
+        targetType: if-else
+      id: start-source-ask_result
+      source: start
+      sourceHandle: source
+      target: ask_result
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
         sourceType: code
         targetType: llm
       id: train_md-source-report
@@ -353,78 +439,6 @@ workflow:
       targetHandle: target
       type: custom
       zIndex: 0
-    - data:
-        isInIteration: false
-        isInLoop: false
-        sourceType: start
-        targetType: if-else
-      id: start-source-ask_result
-      source: start
-      sourceHandle: source
-      target: ask_result
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInIteration: false
-        isInLoop: false
-        sourceType: if-else
-        targetType: tool
-      id: ask_result-result-coll2
-      source: ask_result
-      sourceHandle: result
-      target: coll2
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInIteration: false
-        isInLoop: false
-        sourceType: if-else
-        targetType: tool
-      id: ask_result-rate-coll2
-      source: ask_result
-      sourceHandle: rate
-      target: coll2
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInIteration: false
-        isInLoop: false
-        sourceType: if-else
-        targetType: llm
-      id: ask_result-false-translate
-      source: ask_result
-      sourceHandle: 'false'
-      target: translate
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInIteration: false
-        isInLoop: false
-        sourceType: tool
-        targetType: code
-      id: coll2-source-res_md
-      source: coll2
-      sourceHandle: source
-      target: res_md
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInIteration: false
-        isInLoop: false
-        sourceType: code
-        targetType: answer
-      id: res_md-source-ans_result
-      source: res_md
-      sourceHandle: source
-      target: ans_result
-      targetHandle: target
-      type: custom
-      zIndex: 0
     nodes:
     - data:
         agent_parameters:
@@ -436,12 +450,13 @@ workflow:
           instruction:
             type: mixed
             value: '너는 로봇 모방학습용 시범(demonstration) 데이터 선별을 돕는 에이전트다. 데이터는 robomimic
-              Can 작업의 Multi-Human 시범 300개(학습 후보는 train 270개)다.
+              Multi-Human 시범 두 종류다: Can(캔 옮기기, dataset="can_mh")과 Square(너트를 기둥에 끼우기,
+              더 어려움, dataset="square_mh"). 각각 시범 300개(학습 후보는 train 270개).
 
 
               도구:
 
-              - analyze_data: 데이터셋을 분석해 작업 조건(캔 초기 위치 3x3 칸)별 시범 수, 평균 길이, 총 프레임을
+              - analyze_data: 데이터셋을 분석해 작업 조건(물체 초기 위치 3x3 칸)별 시범 수, 평균 길이, 총 프레임을
               요약하고 run_id를 돌려준다.
 
               - select_demos: analyze_data의 run_id를 받아 예산만큼 시범을 고르고, 비교용 무작위 기준선을
@@ -477,6 +492,10 @@ workflow:
               시드 수)과 학습 시각을 그대로 쓰고, 비교 판정은 judgement의 verdict 문구(차이 있음, 구분 불가 등)를
               바꾸지 않고 전한다. 판정은 두 묶음의 비교에 붙는 것이므로 한 묶음에 판정을 붙이지 않는다. status가 not_trained나
               no_target이면 아직 결과가 없다고 알린다. 학습 실행은 사람 승인 뒤 노트북에서만 한다.
+
+
+              10. 데이터셋을 말하지 않으면 Can(can_mh)을 쓴다고 밝히고 진행한다. Square, 너트, 기둥을 말하면 square_mh를
+              쓴다. 두 데이터셋의 결과를 섞어 비교하지 않는다.
 
 
               8. 답은 한국어로 짧게: 무엇을 했는지, 핵심 수치, 다음 단계.
@@ -586,6 +605,7 @@ workflow:
           window:
             enabled: true
             size: 10
+        selected: true
         title: 에이전트 (Gemma)
         tool_node_version: '2'
         type: agent
@@ -597,6 +617,7 @@ workflow:
       positionAbsolute:
         x: 1540
         y: 300
+      selected: true
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -612,12 +633,13 @@ workflow:
           instruction:
             type: mixed
             value: '너는 로봇 모방학습용 시범(demonstration) 데이터 선별을 돕는 에이전트다. 데이터는 robomimic
-              Can 작업의 Multi-Human 시범 300개(학습 후보는 train 270개)다.
+              Multi-Human 시범 두 종류다: Can(캔 옮기기, dataset="can_mh")과 Square(너트를 기둥에 끼우기,
+              더 어려움, dataset="square_mh"). 각각 시범 300개(학습 후보는 train 270개).
 
 
               도구:
 
-              - analyze_data: 데이터셋을 분석해 작업 조건(캔 초기 위치 3x3 칸)별 시범 수, 평균 길이, 총 프레임을
+              - analyze_data: 데이터셋을 분석해 작업 조건(물체 초기 위치 3x3 칸)별 시범 수, 평균 길이, 총 프레임을
               요약하고 run_id를 돌려준다.
 
               - select_demos: analyze_data의 run_id를 받아 예산만큼 시범을 고르고, 비교용 무작위 기준선을
@@ -653,6 +675,10 @@ workflow:
               시드 수)과 학습 시각을 그대로 쓰고, 비교 판정은 judgement의 verdict 문구(차이 있음, 구분 불가 등)를
               바꾸지 않고 전한다. 판정은 두 묶음의 비교에 붙는 것이므로 한 묶음에 판정을 붙이지 않는다. status가 not_trained나
               no_target이면 아직 결과가 없다고 알린다. 학습 실행은 사람 승인 뒤 노트북에서만 한다.
+
+
+              10. 데이터셋을 말하지 않으면 Can(can_mh)을 쓴다고 밝히고 진행한다. Square, 너트, 기둥을 말하면 square_mh를
+              쓴다. 두 데이터셋의 결과를 섞어 비교하지 않는다.
 
 
               8. 답은 한국어로 짧게: 무엇을 했는지, 핵심 수치, 다음 단계.
@@ -763,6 +789,7 @@ workflow:
           window:
             enabled: true
             size: 10
+        selected: false
         title: 예비 에이전트 (Qwen)
         tool_node_version: '2'
         type: agent
@@ -774,6 +801,7 @@ workflow:
       positionAbsolute:
         x: 1540
         y: 620
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -781,6 +809,7 @@ workflow:
       zIndex: 0
     - data:
         output_type: string
+        selected: false
         title: 에이전트 답 모으기
         type: variable-aggregator
         variables:
@@ -796,6 +825,7 @@ workflow:
       positionAbsolute:
         x: 1840
         y: 300
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -803,6 +833,7 @@ workflow:
       zIndex: 0
     - data:
         answer: 에이전트 모델 호출에 실패했습니다(주 모델과 예비 모델 모두). 잠시 후 다시 시도해 주세요.
+        selected: false
         title: 답변 (에이전트 실패)
         type: answer
         variables: []
@@ -814,6 +845,7 @@ workflow:
       positionAbsolute:
         x: 1840
         y: 820
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -826,6 +858,7 @@ workflow:
           ---
 
           학습 계획이 **거부**되어 학습을 진행하지 않습니다. 예산이나 설정을 바꿔 다시 요청할 수 있습니다.'
+        selected: false
         title: 답변 (거부)
         type: answer
         variables: []
@@ -837,6 +870,7 @@ workflow:
       positionAbsolute:
         x: 3640
         y: 620
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -859,6 +893,7 @@ workflow:
 
 
           {{#train_md.md#}}'
+        selected: false
         title: 답변 (승인)
         type: answer
         variables: []
@@ -870,6 +905,7 @@ workflow:
       positionAbsolute:
         x: 4840
         y: 300
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -877,6 +913,7 @@ workflow:
       zIndex: 0
     - data:
         answer: '{{#agent_out.output#}}'
+        selected: false
         title: 답변 (선별 없음)
         type: answer
         variables: []
@@ -888,6 +925,27 @@ workflow:
       positionAbsolute:
         x: 3040
         y: 820
+      selected: false
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#res_md.md#}}'
+        selected: false
+        title: 답변 (학습 결과)
+        type: answer
+        variables: []
+      height: 101
+      id: ans_result
+      position:
+        x: 1240
+        y: 20
+      positionAbsolute:
+        x: 1240
+        y: 20
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -903,6 +961,7 @@ workflow:
 
 
           {{#plan.issues_md#}}'
+        selected: false
         title: 답변 (검수 반려)
         type: answer
         variables: []
@@ -914,6 +973,7 @@ workflow:
       positionAbsolute:
         x: 3040
         y: 620
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -927,6 +987,7 @@ workflow:
 
           도구 서버에 연결할 수 없어 검수를 하지 못했습니다. 도구 서버(curation-tools)가 켜져 있는지 확인한 뒤 다시 요청해
           주세요.'
+        selected: false
         title: 답변 (도구 실패)
         type: answer
         variables: []
@@ -938,6 +999,7 @@ workflow:
       positionAbsolute:
         x: 2440
         y: 620
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -956,6 +1018,7 @@ workflow:
 
           승인하면 학습 준비 단계로 넘어가고, 거부하면 학습하지 않습니다.'
         inputs: []
+        selected: false
         timeout: 24
         timeout_unit: hour
         title: 학습 승인 (사람)
@@ -975,6 +1038,62 @@ workflow:
       positionAbsolute:
         x: 3040
         y: 300
+      selected: false
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        cases:
+        - case_id: result
+          conditions:
+          - comparison_operator: contains
+            id: c_r1
+            value: 학습 결과
+            varType: string
+            variable_selector:
+            - sys
+            - query
+          - comparison_operator: not contains
+            id: c_r2
+            value: 골라
+            varType: string
+            variable_selector:
+            - sys
+            - query
+          id: result
+          logical_operator: and
+        - case_id: rate
+          conditions:
+          - comparison_operator: contains
+            id: c_r3
+            value: 성공률
+            varType: string
+            variable_selector:
+            - sys
+            - query
+          - comparison_operator: not contains
+            id: c_r4
+            value: 골라
+            varType: string
+            variable_selector:
+            - sys
+            - query
+          id: rate
+          logical_operator: and
+        selected: false
+        title: 학습 결과 질문?
+        type: if-else
+      height: 223
+      id: ask_result
+      position:
+        x: 340
+        y: 300
+      positionAbsolute:
+        x: 340
+        y: 300
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -989,6 +1108,7 @@ workflow:
           enabled: true
           max_retries: 2
           retry_interval: 1000
+        selected: false
         title: 학습 결과 조회 (train_evaluate collect)
         tool_configurations: {}
         tool_label: train_evaluate
@@ -1010,6 +1130,44 @@ workflow:
       positionAbsolute:
         x: 3940
         y: 300
+      selected: false
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        is_team_authorization: true
+        provider_id: curation-tools
+        provider_name: curation-tools
+        provider_type: mcp
+        retry_config:
+          enabled: true
+          max_retries: 2
+          retry_interval: 1000
+        selected: false
+        title: 학습 결과 조회 (collect)
+        tool_configurations: {}
+        tool_label: train_evaluate
+        tool_name: train_evaluate
+        tool_node_version: '2'
+        tool_parameters:
+          session_id:
+            type: mixed
+            value: '{{#sys.conversation_id#}}'
+          stage:
+            type: mixed
+            value: collect
+        type: tool
+      height: 83
+      id: coll2
+      position:
+        x: 640
+        y: 20
+      positionAbsolute:
+        x: 640
+        y: 20
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -1024,6 +1182,7 @@ workflow:
           text:
             children: null
             type: string
+        selected: false
         title: 근거 정리
         type: code
         variables:
@@ -1039,6 +1198,7 @@ workflow:
       positionAbsolute:
         x: 1240
         y: 300
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -1053,6 +1213,7 @@ workflow:
           enabled: true
           max_retries: 2
           retry_interval: 1000
+        selected: false
         title: 거부 기록
         tool_configurations: {}
         tool_label: log_event
@@ -1083,6 +1244,7 @@ workflow:
       positionAbsolute:
         x: 3340
         y: 620
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -1097,6 +1259,7 @@ workflow:
           enabled: true
           max_retries: 2
           retry_interval: 1000
+        selected: false
         title: 승인 기록
         tool_configurations: {}
         tool_label: log_event
@@ -1127,6 +1290,7 @@ workflow:
       positionAbsolute:
         x: 3340
         y: 300
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -1140,15 +1304,18 @@ workflow:
           \ if verdict in (\"pass\", \"revise\"):\n        sets = r.get(\"sets\",\
           \ {})\n        rows = \"\\n\".join(f\"| {k} | {v['n_demos']} | {v['total_frames']:,}\
           \ |\" for k, v in sets.items())\n        tp = r.get(\"training_plan\", {})\n\
-          \        plan_md = (\n            f\"**선별 결과** run_id `{r.get('run_id')}`\
-          \ (예산 {r.get('budget')}개)\\n\\n\"\n            f\"| 묶음 | 시범 수 | 총 프레임 |\\\
-          n|---|---|---|\\n{rows}\\n| train (전체) | 270 | 56,186 |\\n\\n\"\n      \
-          \      f\"**검수 결과**: {verdict}\\n{issues_md}\\n\\n\"\n            f\"**학습\
-          \ 계획**: 위 {tp.get('n_sets', 0)}개 묶음을 같은 설정(robomimic BC-RNN 400 epoch, 시드\
-          \ 1)으로 학습하고 MuJoCo 롤아웃으로 성공률 비교\\n\"\n            f\"예상 시간 약 {tp.get('est_minutes',\
-          \ 0)}분 ({tp.get('note', '')}). 승인하면 노트북 GPU(코랩 또는 Kaggle)를 사용하며 되돌릴 수 없습니다.\"\
-          \n        )\n    return {\"verdict\": verdict, \"run_id\": r.get(\"run_id\"\
-          ) or \"\", \"plan_md\": plan_md, \"issues_md\": issues_md}"
+          \        ts = r.get(\"train_set\", {})\n        plan_md = (\n          \
+          \  f\"**선별 결과** run_id `{r.get('run_id')}` (데이터 {r.get('dataset', 'can_mh')},\
+          \ 예산 {r.get('budget')}개)\\n\\n\"\n            f\"| 묶음 | 시범 수 | 총 프레임 |\\\
+          n|---|---|---|\\n{rows}\\n| train (전체) | {ts.get('n_demos', '-')} | {ts.get('total_frames',\
+          \ 0):,} |\\n\\n\"\n            f\"**검수 결과**: {verdict}\\n{issues_md}\\n\\\
+          n\"\n            f\"**학습 계획**: 위 {tp.get('n_sets', 0)}개 묶음을 같은 설정(robomimic\
+          \ {str(tp.get('algo', 'bc_rnn')).upper().replace('_', '-')} {tp.get('num_epochs',\
+          \ '?')} epoch, 시드 1)으로 학습하고 MuJoCo 롤아웃으로 성공률 비교\\n\"\n            f\"예상\
+          \ 시간 약 {tp.get('est_minutes', 0)}분 ({tp.get('note', '')}). 승인하면 노트북 GPU(코랩\
+          \ 또는 Kaggle)를 사용하며 되돌릴 수 없습니다.\"\n        )\n    return {\"verdict\": verdict,\
+          \ \"run_id\": r.get(\"run_id\") or \"\", \"plan_md\": plan_md, \"issues_md\"\
+          : issues_md}"
         code_language: python3
         outputs:
           issues_md:
@@ -1163,6 +1330,7 @@ workflow:
           verdict:
             children: null
             type: string
+        selected: false
         title: 검수 결과 정리
         type: code
         variables:
@@ -1178,6 +1346,7 @@ workflow:
       positionAbsolute:
         x: 2440
         y: 300
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -1192,6 +1361,7 @@ workflow:
           enabled: true
           max_retries: 2
           retry_interval: 1000
+        selected: false
         title: 학습 계획 (train_evaluate prepare)
         tool_configurations: {}
         tool_label: train_evaluate
@@ -1213,6 +1383,7 @@ workflow:
       positionAbsolute:
         x: 3640
         y: 300
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -1270,6 +1441,7 @@ workflow:
           enabled: true
           max_retries: 1
           retry_interval: 1000
+        selected: false
         title: 최종 보고 (Gemma)
         type: llm
         vision:
@@ -1282,6 +1454,88 @@ workflow:
       positionAbsolute:
         x: 4540
         y: 300
+      selected: false
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: "def main(coll: list) -> dict:\n    p = {\"status\": \"skip\"}\n   \
+          \ c = coll[0] if coll else {}\n    lines = []\n    if p.get(\"status\")\
+          \ == \"skip\":\n        pass\n    elif p.get(\"status\") == \"prepared\"\
+          :\n        cfg = p.get(\"config\", {})\n        lines.append(f\"**학습 계획**\
+          \ 지문 `{p.get('fingerprint')}`, 묶음 {p.get('n_sets')}개, {str(cfg.get('algo',\
+          \ '')).upper()} {cfg.get('num_epochs')} epoch, 예상 약 {p.get('est_minutes')}분\"\
+          )\n    else:\n        lines.append(f\"학습 계획을 만들지 못했습니다: {p.get('detail',\
+          \ p.get('status', '알 수 없음'))}\")\n    st = c.get(\"status\")\n    if st\
+          \ in (\"complete\", \"partial\"):\n        head = \"같은 선별 결과와 설정으로 미리 실행한\
+          \ 학습 결과\" if c.get(\"reused\") else \"학습 결과\"\n        lines.append(f\"\\\
+          n**{head}** (학습 시각 {c.get('trained_at')}{', 추가 시드 ' + str(c.get('seeds_trained_at'))\
+          \ if c.get('seeds_trained_at') else ''}) / {c.get('label')}\")\n       \
+          \ ep = (c.get(\"config\") or {}).get(\"early_eval_epoch\") or 200\n    \
+          \    lines.append(f\"\\n| 묶음 | 시범 수 | 시드 수 | 성공률 | 95% 신뢰구간 | {ep} epoch\
+          \ |\\n|---|---|---|---|---|---|\")\n        for r in c.get(\"table\", []):\n\
+          \            if \"success_rate\" not in r:\n                lines.append(f\"\
+          | {r['set']} | {r['n_demos']} | - | 결과 없음 | - | - |\")\n               \
+          \ continue\n            e = r.get(\"early\")\n            es = f\"{e['success_rate']:.0%}\"\
+          \ if e else \"-\"\n            lines.append(f\"| {r['set']} | {r['n_demos']}\
+          \ | {r.get('n_seeds', 1)} | {r['success_rate']:.0%} ({r['success']}/{r['rollouts']})\
+          \ | {r['ci95'][0]:.0%}~{r['ci95'][1]:.0%} | {es} |\")\n        names = {\"\
+          gain_vs_random\": \"선별 - 무작위 (1주차 기준: +5%p 이상)\", \"drop_vs_full\": \"전체\
+          \ - 선별 (1주차 기준: 하락 5%p 이내)\",\n                 \"early_gain_vs_random\"\
+          : f\"학습 속도, {ep} epoch 선별 - 무작위\", \"same_frames\": \"같은 프레임 수에서 선별 - 무작위\"\
+          ,\n                 \"effect_allocation\": \"칸별 배분 효과\", \"effect_quality\"\
+          : \"품질 점수 효과\",\n                 \"paired_gain_vs_random\": \"짝지은 비교: 선별\
+          \ - 무작위\", \"paired_drop_vs_full\": \"짝지은 비교: 전체 - 선별\",\n             \
+          \    \"paired_early_gain_vs_random\": f\"짝지은 비교, {ep} epoch 선별 - 무작위\",\n\
+          \                 \"paired_both_gain_vs_random\": \"짝지은 비교, 두 시점 합침: 선별\
+          \ - 무작위\", \"paired_both_drop_vs_full\": \"짝지은 비교, 두 시점 합침: 전체 - 선별\"}\n\
+          \        j = c.get(\"judgement\", {})\n        lines.append(\"\\n**판정**\
+          \ (코드가 계산)\")\n        if \"validity\" in j:\n            lines.append(f\"\
+          - {j['validity']}\")\n        for k, label in names.items():\n         \
+          \   if k in j:\n                x = j[k]\n                lines.append(f\"\
+          - {label}: {x['diff'] * 100:+.0f}%p (95% 신뢰구간 {x['ci95'][0] * 100:+.0f}~{x['ci95'][1]\
+          \ * 100:+.0f}%p) → {x['verdict']}\")\n    elif st == \"not_trained\":\n\
+          \        lines.append(\"\\n아직 학습 결과가 없습니다. 노트북에서 학습을 돌리고 결과를 저장하면 '학습 결과\
+          \ 보여줘'로 볼 수 있습니다.\")\n    elif st == \"no_target\":\n        lines.append(\"\
+          이 대화에는 승인된 학습 계획이 없습니다. 먼저 시범을 골라 학습을 승인하면 결과를 볼 수 있습니다.\")\n    else:\n\
+          \        lines.append(f\"\\n학습 결과를 불러오지 못했습니다: {c.get('detail', st)}\")\n\
+          \    if st in (\"complete\", \"partial\"):\n        brief = (\"같은 선별 결과와\
+          \ 설정으로 미리 실행한 학습 결과가 있다\" if c.get(\"reused\") else \"학습 결과가 있다\") + f\"\
+          \ (라벨: {c.get('label')}). 수치와 판정은 답변 아래 표에 코드가 붙인다\"\n    elif st == \"\
+          not_trained\":\n        brief = \"학습 계획만 준비했고 학습 결과는 아직 없다. 다음 단계는 노트북(코랩\
+          \ 또는 Kaggle)에서 학습을 실행하는 것\"\n    else:\n        brief = \"학습 결과를 불러오지 못했다\"\
+          \n    return {\"md\": \"\\n\".join(lines), \"status\": str(st), \"brief\"\
+          : brief}"
+        code_language: python3
+        outputs:
+          brief:
+            children: null
+            type: string
+          md:
+            children: null
+            type: string
+          status:
+            children: null
+            type: string
+        selected: false
+        title: 학습 결과 정리 (질문용)
+        type: code
+        variables:
+        - value_selector:
+          - coll2
+          - json
+          variable: coll
+      height: 51
+      id: res_md
+      position:
+        x: 940
+        y: 20
+      positionAbsolute:
+        x: 940
+        y: 20
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -1315,6 +1569,7 @@ workflow:
       positionAbsolute:
         x: 940
         y: 300
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -1330,6 +1585,7 @@ workflow:
           enabled: true
           max_retries: 2
           retry_interval: 1000
+        selected: false
         title: 검수 (review_selection)
         tool_configurations: {}
         tool_label: review_selection
@@ -1348,6 +1604,7 @@ workflow:
       positionAbsolute:
         x: 2140
         y: 300
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -1377,6 +1634,7 @@ workflow:
             - verdict
           id: revise
           logical_operator: and
+        selected: false
         title: 검수 판정
         type: if-else
       height: 195
@@ -1387,12 +1645,14 @@ workflow:
       positionAbsolute:
         x: 2740
         y: 300
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
       width: 241
       zIndex: 0
     - data:
+        selected: false
         title: 시작
         type: start
         variables: []
@@ -1404,6 +1664,7 @@ workflow:
       positionAbsolute:
         x: 40
         y: 300
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -1421,34 +1682,39 @@ workflow:
           같은 선별 결과와 설정으로 미리 실행한 학습 결과\" if c.get(\"reused\") else \"학습 결과\"\n    \
           \    lines.append(f\"\\n**{head}** (학습 시각 {c.get('trained_at')}{', 추가 시드\
           \ ' + str(c.get('seeds_trained_at')) if c.get('seeds_trained_at') else ''})\
-          \ / {c.get('label')}\")\n        lines.append(\"\\n| 묶음 | 시범 수 | 시드 수 |\
-          \ 성공률 | 95% 신뢰구간 | 200 epoch |\\n|---|---|---|---|---|---|\")\n        for\
-          \ r in c.get(\"table\", []):\n            if \"success_rate\" not in r:\n\
-          \                lines.append(f\"| {r['set']} | {r['n_demos']} | - | 결과\
-          \ 없음 | - | - |\")\n                continue\n            e = r.get(\"early\"\
-          )\n            es = f\"{e['success_rate']:.0%}\" if e else \"-\"\n     \
-          \       lines.append(f\"| {r['set']} | {r['n_demos']} | {r.get('n_seeds',\
-          \ 1)} | {r['success_rate']:.0%} ({r['success']}/{r['rollouts']}) | {r['ci95'][0]:.0%}~{r['ci95'][1]:.0%}\
+          \ / {c.get('label')}\")\n        ep = (c.get(\"config\") or {}).get(\"early_eval_epoch\"\
+          ) or 200\n        lines.append(f\"\\n| 묶음 | 시범 수 | 시드 수 | 성공률 | 95% 신뢰구간\
+          \ | {ep} epoch |\\n|---|---|---|---|---|---|\")\n        for r in c.get(\"\
+          table\", []):\n            if \"success_rate\" not in r:\n             \
+          \   lines.append(f\"| {r['set']} | {r['n_demos']} | - | 결과 없음 | - | - |\"\
+          )\n                continue\n            e = r.get(\"early\")\n        \
+          \    es = f\"{e['success_rate']:.0%}\" if e else \"-\"\n            lines.append(f\"\
+          | {r['set']} | {r['n_demos']} | {r.get('n_seeds', 1)} | {r['success_rate']:.0%}\
+          \ ({r['success']}/{r['rollouts']}) | {r['ci95'][0]:.0%}~{r['ci95'][1]:.0%}\
           \ | {es} |\")\n        names = {\"gain_vs_random\": \"선별 - 무작위 (1주차 기준:\
           \ +5%p 이상)\", \"drop_vs_full\": \"전체 - 선별 (1주차 기준: 하락 5%p 이내)\",\n     \
-          \            \"early_gain_vs_random\": \"학습 속도, 200 epoch 선별 - 무작위\", \"\
-          same_frames\": \"같은 프레임 수에서 선별 - 무작위\",\n                 \"effect_allocation\"\
-          : \"칸별 배분 효과\", \"effect_quality\": \"품질 점수 효과\"}\n        j = c.get(\"\
-          judgement\", {})\n        lines.append(\"\\n**판정** (코드가 계산)\")\n       \
-          \ if \"validity\" in j:\n            lines.append(f\"- {j['validity']}\"\
-          )\n        for k, label in names.items():\n            if k in j:\n    \
-          \            x = j[k]\n                lines.append(f\"- {label}: {x['diff']\
-          \ * 100:+.0f}%p (95% 신뢰구간 {x['ci95'][0] * 100:+.0f}~{x['ci95'][1] * 100:+.0f}%p)\
-          \ → {x['verdict']}\")\n    elif st == \"not_trained\":\n        lines.append(\"\
-          \\n아직 학습 결과가 없습니다. 노트북에서 학습을 돌리고 결과를 저장하면 '학습 결과 보여줘'로 볼 수 있습니다.\")\n  \
-          \  else:\n        lines.append(f\"\\n학습 결과를 불러오지 못했습니다: {c.get('detail',\
-          \ st)}\")\n    if st in (\"complete\", \"partial\"):\n        brief = (\"\
-          같은 선별 결과와 설정으로 미리 실행한 학습 결과가 있다\" if c.get(\"reused\") else \"학습 결과가 있다\"\
-          ) + f\" (라벨: {c.get('label')}). 수치와 판정은 답변 아래 표에 코드가 붙인다\"\n    elif st\
-          \ == \"not_trained\":\n        brief = \"학습 계획만 준비했고 학습 결과는 아직 없다. 다음 단계는\
-          \ 노트북(코랩 또는 Kaggle)에서 학습을 실행하는 것\"\n    else:\n        brief = \"학습 결과를\
-          \ 불러오지 못했다\"\n    return {\"md\": \"\\n\".join(lines), \"status\": str(st),\
-          \ \"brief\": brief}"
+          \            \"early_gain_vs_random\": f\"학습 속도, {ep} epoch 선별 - 무작위\",\
+          \ \"same_frames\": \"같은 프레임 수에서 선별 - 무작위\",\n                 \"effect_allocation\"\
+          : \"칸별 배분 효과\", \"effect_quality\": \"품질 점수 효과\",\n                 \"paired_gain_vs_random\"\
+          : \"짝지은 비교: 선별 - 무작위\", \"paired_drop_vs_full\": \"짝지은 비교: 전체 - 선별\",\n\
+          \                 \"paired_early_gain_vs_random\": f\"짝지은 비교, {ep} epoch\
+          \ 선별 - 무작위\",\n                 \"paired_both_gain_vs_random\": \"짝지은 비교,\
+          \ 두 시점 합침: 선별 - 무작위\", \"paired_both_drop_vs_full\": \"짝지은 비교, 두 시점 합침:\
+          \ 전체 - 선별\"}\n        j = c.get(\"judgement\", {})\n        lines.append(\"\
+          \\n**판정** (코드가 계산)\")\n        if \"validity\" in j:\n            lines.append(f\"\
+          - {j['validity']}\")\n        for k, label in names.items():\n         \
+          \   if k in j:\n                x = j[k]\n                lines.append(f\"\
+          - {label}: {x['diff'] * 100:+.0f}%p (95% 신뢰구간 {x['ci95'][0] * 100:+.0f}~{x['ci95'][1]\
+          \ * 100:+.0f}%p) → {x['verdict']}\")\n    elif st == \"not_trained\":\n\
+          \        lines.append(\"\\n아직 학습 결과가 없습니다. 노트북에서 학습을 돌리고 결과를 저장하면 '학습 결과\
+          \ 보여줘'로 볼 수 있습니다.\")\n    else:\n        lines.append(f\"\\n학습 결과를 불러오지\
+          \ 못했습니다: {c.get('detail', st)}\")\n    if st in (\"complete\", \"partial\"\
+          ):\n        brief = (\"같은 선별 결과와 설정으로 미리 실행한 학습 결과가 있다\" if c.get(\"reused\"\
+          ) else \"학습 결과가 있다\") + f\" (라벨: {c.get('label')}). 수치와 판정은 답변 아래 표에 코드가\
+          \ 붙인다\"\n    elif st == \"not_trained\":\n        brief = \"학습 계획만 준비했고\
+          \ 학습 결과는 아직 없다. 다음 단계는 노트북(코랩 또는 Kaggle)에서 학습을 실행하는 것\"\n    else:\n   \
+          \     brief = \"학습 결과를 불러오지 못했다\"\n    return {\"md\": \"\\n\".join(lines),\
+          \ \"status\": str(st), \"brief\": brief}"
         code_language: python3
         outputs:
           brief:
@@ -1460,6 +1726,7 @@ workflow:
           status:
             children: null
             type: string
+        selected: false
         title: 학습 결과 정리
         type: code
         variables:
@@ -1479,6 +1746,7 @@ workflow:
       positionAbsolute:
         x: 4240
         y: 300
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
@@ -1535,184 +1803,14 @@ workflow:
       positionAbsolute:
         x: 640
         y: 300
+      selected: false
       sourcePosition: null
       targetPosition: null
       type: custom
       width: 241
       zIndex: 0
-    - data:
-        cases:
-        - case_id: result
-          conditions:
-          - comparison_operator: contains
-            id: c_r1
-            value: 학습 결과
-            varType: string
-            variable_selector:
-            - sys
-            - query
-          - comparison_operator: not contains
-            id: c_r2
-            value: 골라
-            varType: string
-            variable_selector:
-            - sys
-            - query
-          id: result
-          logical_operator: and
-        - case_id: rate
-          conditions:
-          - comparison_operator: contains
-            id: c_r3
-            value: 성공률
-            varType: string
-            variable_selector:
-            - sys
-            - query
-          - comparison_operator: not contains
-            id: c_r4
-            value: 골라
-            varType: string
-            variable_selector:
-            - sys
-            - query
-          id: rate
-          logical_operator: and
-        title: 학습 결과 질문?
-        type: if-else
-      height: 150
-      id: ask_result
-      position:
-        x: 340
-        y: 300
-      positionAbsolute:
-        x: 340
-        y: 300
-      type: custom
-      width: 241
-      zIndex: 0
-    - data:
-        is_team_authorization: true
-        provider_id: curation-tools
-        provider_name: curation-tools
-        provider_type: mcp
-        retry_config:
-          enabled: true
-          max_retries: 2
-          retry_interval: 1000
-        title: 학습 결과 조회 (collect)
-        tool_configurations: {}
-        tool_label: train_evaluate
-        tool_name: train_evaluate
-        tool_node_version: '2'
-        tool_parameters:
-          session_id:
-            type: mixed
-            value: '{{#sys.conversation_id#}}'
-          stage:
-            type: mixed
-            value: collect
-        type: tool
-      height: 83
-      id: coll2
-      position:
-        x: 640
-        y: 20
-      positionAbsolute:
-        x: 640
-        y: 20
-      type: custom
-      width: 241
-      zIndex: 0
-    - data:
-        code: "def main(coll: list) -> dict:\n    p = {\"status\": \"skip\"}\n   \
-          \ c = coll[0] if coll else {}\n    lines = []\n    if p.get(\"status\")\
-          \ == \"skip\":\n        pass\n    elif p.get(\"status\") == \"prepared\"\
-          :\n        cfg = p.get(\"config\", {})\n        lines.append(f\"**학습 계획**\
-          \ 지문 `{p.get('fingerprint')}`, 묶음 {p.get('n_sets')}개, {str(cfg.get('algo',\
-          \ '')).upper()} {cfg.get('num_epochs')} epoch, 예상 약 {p.get('est_minutes')}분\"\
-          )\n    else:\n        lines.append(f\"학습 계획을 만들지 못했습니다: {p.get('detail',\
-          \ p.get('status', '알 수 없음'))}\")\n    st = c.get(\"status\")\n    if st\
-          \ in (\"complete\", \"partial\"):\n        head = \"같은 선별 결과와 설정으로 미리 실행한\
-          \ 학습 결과\" if c.get(\"reused\") else \"학습 결과\"\n        lines.append(f\"\\\
-          n**{head}** (학습 시각 {c.get('trained_at')}{', 추가 시드 ' + str(c.get('seeds_trained_at'))\
-          \ if c.get('seeds_trained_at') else ''}) / {c.get('label')}\")\n       \
-          \ lines.append(\"\\n| 묶음 | 시범 수 | 시드 수 | 성공률 | 95% 신뢰구간 | 200 epoch |\\\
-          n|---|---|---|---|---|---|\")\n        for r in c.get(\"table\", []):\n\
-          \            if \"success_rate\" not in r:\n                lines.append(f\"\
-          | {r['set']} | {r['n_demos']} | - | 결과 없음 | - | - |\")\n               \
-          \ continue\n            e = r.get(\"early\")\n            es = f\"{e['success_rate']:.0%}\"\
-          \ if e else \"-\"\n            lines.append(f\"| {r['set']} | {r['n_demos']}\
-          \ | {r.get('n_seeds', 1)} | {r['success_rate']:.0%} ({r['success']}/{r['rollouts']})\
-          \ | {r['ci95'][0]:.0%}~{r['ci95'][1]:.0%} | {es} |\")\n        names = {\"\
-          gain_vs_random\": \"선별 - 무작위 (1주차 기준: +5%p 이상)\", \"drop_vs_full\": \"전체\
-          \ - 선별 (1주차 기준: 하락 5%p 이내)\",\n                 \"early_gain_vs_random\"\
-          : \"학습 속도, 200 epoch 선별 - 무작위\", \"same_frames\": \"같은 프레임 수에서 선별 - 무작위\"\
-          ,\n                 \"effect_allocation\": \"칸별 배분 효과\", \"effect_quality\"\
-          : \"품질 점수 효과\"}\n        j = c.get(\"judgement\", {})\n        lines.append(\"\
-          \\n**판정** (코드가 계산)\")\n        if \"validity\" in j:\n            lines.append(f\"\
-          - {j['validity']}\")\n        for k, label in names.items():\n         \
-          \   if k in j:\n                x = j[k]\n                lines.append(f\"\
-          - {label}: {x['diff'] * 100:+.0f}%p (95% 신뢰구간 {x['ci95'][0] * 100:+.0f}~{x['ci95'][1]\
-          \ * 100:+.0f}%p) → {x['verdict']}\")\n    elif st == \"not_trained\":\n\
-          \        lines.append(\"\\n아직 학습 결과가 없습니다. 노트북에서 학습을 돌리고 결과를 저장하면 '학습 결과\
-          \ 보여줘'로 볼 수 있습니다.\")\n    elif st == \"no_target\":\n        lines.append(\"\
-          이 대화에는 승인된 학습 계획이 없습니다. 먼저 시범을 골라 학습을 승인하면 결과를 볼 수 있습니다.\")\n    else:\n\
-          \        lines.append(f\"\\n학습 결과를 불러오지 못했습니다: {c.get('detail', st)}\")\n\
-          \    if st in (\"complete\", \"partial\"):\n        brief = (\"같은 선별 결과와\
-          \ 설정으로 미리 실행한 학습 결과가 있다\" if c.get(\"reused\") else \"학습 결과가 있다\") + f\"\
-          \ (라벨: {c.get('label')}). 수치와 판정은 답변 아래 표에 코드가 붙인다\"\n    elif st == \"\
-          not_trained\":\n        brief = \"학습 계획만 준비했고 학습 결과는 아직 없다. 다음 단계는 노트북(코랩\
-          \ 또는 Kaggle)에서 학습을 실행하는 것\"\n    else:\n        brief = \"학습 결과를 불러오지 못했다\"\
-          \n    return {\"md\": \"\\n\".join(lines), \"status\": str(st), \"brief\"\
-          : brief}"
-        code_language: python3
-        outputs:
-          brief:
-            children: null
-            type: string
-          md:
-            children: null
-            type: string
-          status:
-            children: null
-            type: string
-        title: 학습 결과 정리 (질문용)
-        type: code
-        variables:
-        - value_selector:
-          - coll2
-          - json
-          variable: coll
-      height: 51
-      id: res_md
-      position:
-        x: 940
-        y: 20
-      positionAbsolute:
-        x: 940
-        y: 20
-      type: custom
-      width: 241
-      zIndex: 0
-    - data:
-        answer: '{{#res_md.md#}}'
-        title: 답변 (학습 결과)
-        type: answer
-        variables: []
-      height: 101
-      id: ans_result
-      position:
-        x: 1240
-        y: 20
-      positionAbsolute:
-        x: 1240
-        y: 20
-      type: custom
-      width: 241
-      zIndex: 0
     viewport:
-      x: 0
-      y: 0
-      zoom: 0.35
+      x: -1310.4227127604863
+      y: -158.57799377082506
+      zoom: 1.040975529567102
   rag_pipeline_variables: []

@@ -17,7 +17,7 @@ import json
 from pathlib import Path
 
 from curation_tools.select_demos import FRAME_TOLERANCE
-from curation_tools.train_eval import MINUTES_PER_SET, TRAIN_CONFIG
+from curation_tools.train_eval import MINUTES_BY_DATASET, TRAIN_CONFIGS
 
 
 def review(run_dir: Path, runs_root: Path) -> dict:
@@ -66,11 +66,18 @@ def review(run_dir: Path, runs_root: Path) -> dict:
         want = {a["condition"]: a["selected"] for a in sel["allocation"]}
         if per != want:
             issues.append({"check": "stratified", "detail": "조건별 균등 기준선의 칸별 개수가 선택 결과와 다름"})
-    if not (run_dir / "can_mh_curated.hdf5").exists():
+    copy = (sel.get("hdf5") or {}).get("path")
+    if not (copy and Path(copy).exists()) and not list(run_dir.glob("*_curated.hdf5")):
         issues.append({"check": "filter_keys", "detail": "필터 키 복사본 없음"})
 
     sets = {k: {"n_demos": v["n_demos"], "total_frames": v["total_frames"]} for k, v in sel["sets"].items()}
     plan_sets = list(sets) + ["train"]  # 학습 비교 묶음: 선택 결과, 무작위 2종, 전체
+    train_ids = [d for d in analysis["demos"] if d.get("split") == "train"]
+    name = analysis["dataset"].get("name", "can_mh")
+    cfg = TRAIN_CONFIGS.get(name, TRAIN_CONFIGS["can_mh"])
+    minutes = MINUTES_BY_DATASET.get(name, MINUTES_BY_DATASET["can_mh"])
+    where = "코랩 T4 본 실험 측정" if name == "can_mh" else "Kaggle T4 파일럿 측정"
+    note = f"{where} 기준(묶음당 약 {minutes}분), {cfg['algo'].upper()} {cfg['num_epochs']} epoch, 시드 1개"
     return {
         "run_id": sel["run_id"],
         "analysis_run_id": sel["analysis_run_id"],
@@ -79,8 +86,10 @@ def review(run_dir: Path, runs_root: Path) -> dict:
         "warnings": warnings,
         "budget": budget,
         "selected": {"n_demos": len(ids), "total_frames": frames},
+        "dataset": name,
         "sets": sets,
+        "train_set": {"n_demos": len(train_ids), "total_frames": int(sum(d["length"] for d in train_ids))},
         "training_plan": {"filter_keys": plan_sets, "n_sets": len(plan_sets),
-                          "est_minutes": len(plan_sets) * MINUTES_PER_SET,
-                          "note": f"코랩 T4 본 실험 측정 기준(묶음당 약 {MINUTES_PER_SET}분), {TRAIN_CONFIG['algo'].upper()} {TRAIN_CONFIG['num_epochs']} epoch, 시드 1개"},
+                          "algo": cfg["algo"], "num_epochs": cfg["num_epochs"],
+                          "est_minutes": len(plan_sets) * minutes, "note": note},
     }

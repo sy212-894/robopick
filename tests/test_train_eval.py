@@ -165,6 +165,28 @@ def test_save_seed_results_checks(isolated, tmp_path):
     assert "시드 수가 다름" in out["label"]  # train 등은 시드 1개뿐
 
 
+SQUARE = Path(os.environ.get("CURATION_SQUARE", "C:/curation-data/raw/square_mh_low_dim.hdf5"))
+
+
+@pytest.mark.skipif(not SQUARE.exists(), reason="Square 데이터 없음")
+def test_square_plan(tmp_path):
+    from curation_tools import analyze as A
+    from curation_tools import select_demos as S
+    import base64, zlib
+    runs = tmp_path / "runs"
+    a = A.run(SQUARE, out_root=runs, run_id="R-sq-a")
+    an = json.loads((a / "analysis.json").read_text(encoding="utf-8"))
+    assert an["dataset"]["name"] == "square_mh" and an["dataset"]["object"] == "너트"
+    s = S.run(a / "analysis.json", out_root=runs, run_id="R-sq-s")
+    assert (s / "square_mh_curated.hdf5").exists()
+    p = T.prepare(s, runs)
+    assert p["dataset"] == "square_mh" and p["n_sets"] == 5
+    assert p["config"]["num_epochs"] == 600 and p["config"]["early_eval_epoch"] == 400  # 파일럿(6-4) 결과로 늘림
+    assert p["notebook"] == "kaggle/03_square.ipynb" and p["est_minutes"] == 5 * 27
+    body = json.loads(zlib.decompress(base64.b64decode((s / "plan" / "plan_b64.txt").read_text())))
+    assert body["hf_path"] == "v1.5/square/mh/low_dim_v15.hdf5" and body["dataset"] == "square_mh"
+
+
 def _paired_doc(outcomes: dict) -> dict:
     return {"epoch": 400, "runs": {f"{k}|seed{s}": {"set": k, "seed": s, "outcomes": o, "success": sum(o)}
                                    for (k, s), o in outcomes.items()}}
@@ -190,3 +212,48 @@ def test_paired_requires_same_direction():
     p = T.paired_diff(doc, "curated_150", "random_150")
     assert p["ci95"][0] > 0 and p["per_seed_diff"][3] < 0
     assert p["verdict"] == "구분 불가" and "방향" in p["note"]
+
+
+def _square_doc(outcomes: dict) -> dict:
+    """Square 노트북 형식: 모든 시드가 runs에, 시범별 결과는 by_epoch 안에."""
+    runs = {}
+    for (name, seed), by in outcomes.items():
+        last = by[600]
+        runs[f"{name}|seed{seed}"] = {"set": name, "seed": seed, "success": sum(last), "rollouts": len(last), "train_sec": 700,
+                                      "finished_at": f"2026-10-13T0{seed}:00:00+09:00",
+                                      "by_epoch": {str(e): {"success": sum(o), "rollouts": len(o), "outcomes": o} for e, o in by.items()}}
+    return {"fingerprint": "fp", "mode": "main", "config": {"num_epochs": 600, "early_eval_epoch": 400, "seed": 1}, "runs": runs}
+
+
+def test_square_format_compare_paired():
+    plan = {"config": {"num_epochs": 600, "early_eval_epoch": 400, "seed": 1},
+            "order": ["curated_150", "random_150", "train"],
+            "sets": {"curated_150": ["d"] * 150, "random_150": ["d"] * 150, "train": ["d"] * 270}}
+    hi, lo = [1] * 30 + [0] * 20, [1] * 20 + [0] * 30
+    early_hi, early_lo = [1] * 10 + [0] * 20, [0] * 30
+    doc = _square_doc({**{("curated_150", s): {400: early_hi, 600: hi} for s in (1, 2, 3)},
+                       **{("random_150", s): {400: early_lo, 600: lo} for s in (1, 2, 3)},
+                       **{("train", s): {400: early_lo, 600: hi} for s in (1, 2, 3)}})
+    out = T.compare(plan, doc)
+    row = next(r for r in out["table"] if r["set"] == "curated_150")
+    assert row["n_seeds"] == 3 and row["success"] == 90 and row["early"]["epoch"] == 400
+    j = out["judgement"]
+    assert j["gain_vs_random"]["diff"] == 0.2 and j["paired_gain_vs_random"]["diff"] == 0.2
+    assert j["paired_gain_vs_random"]["n_pairs"] == 150 and j["paired_gain_vs_random"]["verdict"] == "차이 있음 (높음)"
+    assert j["paired_early_gain_vs_random"]["diff"] == round(10 / 30, 4) and "400 epoch" in j["paired_early_gain_vs_random"]["question"]
+    assert j["paired_drop_vs_full"]["diff"] == 0 and j["paired_drop_vs_full"]["verdict"] == "구분 불가"
+    # 400·600 epoch 합침: 시드마다 30 + 50 = 80쌍, 선별 40/80 vs 무작위 20/80
+    both = j["paired_both_gain_vs_random"]
+    assert both["n_pairs"] == 240 and both["diff"] == 0.25 and "400·600" in both["question"]
+    assert j["paired_both_drop_vs_full"]["diff"] == round(-10 / 80, 4)
+
+
+def test_square_pilot_file_has_no_paired_for_missing_sets():
+    # 파일럿은 전체·무작위만 있어 선별 비교는 없고, 결과 파일을 그대로 읽을 수 있어야 한다
+    f = Path(__file__).parent.parent / "results" / "square_mh_3b6cc7529b7e1101_pilot_kaggle.json"
+    doc = json.loads(f.read_text(encoding="utf-8"))
+    plan = {"config": doc["config"], "order": ["random_150", "train"], "sets": {"random_150": ["d"] * 150, "train": ["d"] * 270}}
+    out = T.compare(plan, doc)
+    assert {r["set"]: r["success"] for r in out["table"]} == {"random_150": 5, "train": 5}
+    assert not any(k.startswith("paired") for k in out["judgement"])
+    assert T._outcomes(doc["runs"]["train|seed1"], 400) == [0, 1, 1, 1, 0, 0, 0, 0, 1, 1]

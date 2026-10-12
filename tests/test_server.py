@@ -100,6 +100,7 @@ async def test_review_selection(isolated):
         assert rv["verdict"] == "pass" and rv["run_id"] == sel["run_id"] and rv["issues"] == []
         assert rv["selected"] == {"n_demos": 150, "total_frames": 21833}
         assert rv["training_plan"]["n_sets"] == 5
+        assert rv["training_plan"]["num_epochs"] == 400 and rv["training_plan"]["algo"] == "bc_rnn"  # 승인 화면 문구용
         assert "demo_" not in json.dumps(rv) and "better" not in json.dumps(rv)
         # 같은 결과를 두 번 검수하지 않는다
         _, again = await call(s, "review_selection", {"session_id": "conv-r"})
