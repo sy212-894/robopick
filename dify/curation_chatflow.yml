@@ -1486,17 +1486,17 @@ workflow:
           \ if e else \"-\"\n            lines.append(f\"| {r['set']} | {r['n_demos']}\
           \ | {r.get('n_seeds', 1)} | {r['success_rate']:.0%} ({r['success']}/{r['rollouts']})\
           \ | {r['ci95'][0]:.0%}~{r['ci95'][1]:.0%} | {es} |\")\n        names = {\"\
-          gain_vs_random\": \"선별 - 무작위 (1주차 기준: +5%p 이상)\", \"drop_vs_full\": \"전체\
-          \ - 선별 (1주차 기준: 하락 5%p 이내)\",\n                 \"early_gain_vs_random\"\
-          : f\"학습 속도, {ep} epoch 선별 - 무작위\", \"same_frames\": \"같은 프레임 수에서 선별 - 무작위\"\
-          ,\n                 \"effect_allocation\": \"칸별 배분 효과\", \"effect_quality\"\
-          : \"품질 점수 효과\",\n                 \"paired_gain_vs_random\": \"짝지은 비교: 선별\
-          \ - 무작위\", \"paired_drop_vs_full\": \"짝지은 비교: 전체 - 선별\",\n             \
-          \    \"paired_early_gain_vs_random\": f\"짝지은 비교, {ep} epoch 선별 - 무작위\",\n\
-          \                 \"paired_both_gain_vs_random\": \"짝지은 비교, 두 시점 합침: 선별\
-          \ - 무작위\", \"paired_both_drop_vs_full\": \"짝지은 비교, 두 시점 합침: 전체 - 선별\"}\n\
-          \        j = c.get(\"judgement\", {})\n        lines.append(\"\\n**판정**\
-          \ (코드가 계산)\")\n        if \"validity\" in j:\n            lines.append(f\"\
+          paired_gain_vs_random\": \"주 판정 · 짝지은 비교: 선별 - 무작위 (1주차 기준: +5%p 이상)\",\
+          \ \"paired_drop_vs_full\": \"주 판정 · 짝지은 비교: 전체 - 선별 (1주차 기준: 하락 5%p 이내)\"\
+          , \"gain_vs_random\": \"보조 · 시험 합산: 선별 - 무작위\", \"drop_vs_full\": \"보조 ·\
+          \ 시험 합산: 전체 - 선별\",\n                 \"early_gain_vs_random\": f\"학습 속도,\
+          \ {ep} epoch 선별 - 무작위\", \"same_frames\": \"같은 프레임 수에서 선별 - 무작위\",\n   \
+          \              \"effect_allocation\": \"칸별 배분 효과\", \"effect_quality\":\
+          \ \"품질 점수 효과\",\n                 \n                 \"paired_early_gain_vs_random\"\
+          : f\"짝지은 비교, {ep} epoch 선별 - 무작위\",\n                 \"paired_both_gain_vs_random\"\
+          : \"짝지은 비교, 두 시점 합침: 선별 - 무작위\", \"paired_both_drop_vs_full\": \"짝지은 비교,\
+          \ 두 시점 합침: 전체 - 선별\"}\n        j = c.get(\"judgement\", {})\n        lines.append(\"\
+          \\n**판정** (코드가 계산)\")\n        if \"validity\" in j:\n            lines.append(f\"\
           - {j['validity']}\")\n        for k, label in names.items():\n         \
           \   if k in j:\n                x = j[k]\n                lines.append(f\"\
           - {label}: {x['diff'] * 100:+.0f}%p (95% 신뢰구간 {x['ci95'][0] * 100:+.0f}~{x['ci95'][1]\
@@ -1565,7 +1565,7 @@ workflow:
         selected: false
         title: 근거 검색
         type: knowledge-retrieval
-      height: 111
+      height: 149
       id: retrieval
       position:
         x: 940
@@ -1695,17 +1695,18 @@ workflow:
           \    es = f\"{e['success_rate']:.0%}\" if e else \"-\"\n            lines.append(f\"\
           | {r['set']} | {r['n_demos']} | {r.get('n_seeds', 1)} | {r['success_rate']:.0%}\
           \ ({r['success']}/{r['rollouts']}) | {r['ci95'][0]:.0%}~{r['ci95'][1]:.0%}\
-          \ | {es} |\")\n        names = {\"gain_vs_random\": \"선별 - 무작위 (1주차 기준:\
-          \ +5%p 이상)\", \"drop_vs_full\": \"전체 - 선별 (1주차 기준: 하락 5%p 이내)\",\n     \
-          \            \"early_gain_vs_random\": f\"학습 속도, {ep} epoch 선별 - 무작위\",\
-          \ \"same_frames\": \"같은 프레임 수에서 선별 - 무작위\",\n                 \"effect_allocation\"\
-          : \"칸별 배분 효과\", \"effect_quality\": \"품질 점수 효과\",\n                 \"paired_gain_vs_random\"\
-          : \"짝지은 비교: 선별 - 무작위\", \"paired_drop_vs_full\": \"짝지은 비교: 전체 - 선별\",\n\
-          \                 \"paired_early_gain_vs_random\": f\"짝지은 비교, {ep} epoch\
-          \ 선별 - 무작위\",\n                 \"paired_both_gain_vs_random\": \"짝지은 비교,\
-          \ 두 시점 합침: 선별 - 무작위\", \"paired_both_drop_vs_full\": \"짝지은 비교, 두 시점 합침:\
-          \ 전체 - 선별\"}\n        j = c.get(\"judgement\", {})\n        lines.append(\"\
-          \\n**판정** (코드가 계산)\")\n        if \"validity\" in j:\n            lines.append(f\"\
+          \ | {es} |\")\n        names = {\"paired_gain_vs_random\": \"주 판정 · 짝지은\
+          \ 비교: 선별 - 무작위 (1주차 기준: +5%p 이상)\", \"paired_drop_vs_full\": \"주 판정 · 짝지은\
+          \ 비교: 전체 - 선별 (1주차 기준: 하락 5%p 이내)\", \"gain_vs_random\": \"보조 · 시험 합산: 선별\
+          \ - 무작위\", \"drop_vs_full\": \"보조 · 시험 합산: 전체 - 선별\",\n                \
+          \ \"early_gain_vs_random\": f\"학습 속도, {ep} epoch 선별 - 무작위\", \"same_frames\"\
+          : \"같은 프레임 수에서 선별 - 무작위\",\n                 \"effect_allocation\": \"칸별\
+          \ 배분 효과\", \"effect_quality\": \"품질 점수 효과\",\n                 \n      \
+          \           \"paired_early_gain_vs_random\": f\"짝지은 비교, {ep} epoch 선별 -\
+          \ 무작위\",\n                 \"paired_both_gain_vs_random\": \"짝지은 비교, 두 시점\
+          \ 합침: 선별 - 무작위\", \"paired_both_drop_vs_full\": \"짝지은 비교, 두 시점 합침: 전체 -\
+          \ 선별\"}\n        j = c.get(\"judgement\", {})\n        lines.append(\"\\\
+          n**판정** (코드가 계산)\")\n        if \"validity\" in j:\n            lines.append(f\"\
           - {j['validity']}\")\n        for k, label in names.items():\n         \
           \   if k in j:\n                x = j[k]\n                lines.append(f\"\
           - {label}: {x['diff'] * 100:+.0f}%p (95% 신뢰구간 {x['ci95'][0] * 100:+.0f}~{x['ci95'][1]\
@@ -1815,7 +1816,7 @@ workflow:
       width: 241
       zIndex: 0
     viewport:
-      x: -1310.4227127604863
-      y: -158.57799377082506
-      zoom: 1.040975529567102
+      x: -499.3141983101832
+      y: 137.85244651241285
+      zoom: 0.9078089633247576
   rag_pipeline_variables: []
