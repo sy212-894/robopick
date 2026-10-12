@@ -34,7 +34,7 @@
      "rollouts": 50
     }
    },
-   "finished_at": "2026-10-11T17:25:18"
+   "finished_at": "2026-10-12T02:25:18"
   },
   "random_150|seed2": {
    "set": "random_150",
@@ -53,7 +53,7 @@
      "rollouts": 50
     }
    },
-   "finished_at": "2026-10-11T17:45:34"
+   "finished_at": "2026-10-12T02:45:34"
   },
   "train|seed2": {
    "set": "train",
@@ -72,7 +72,7 @@
      "rollouts": 50
     }
    },
-   "finished_at": "2026-10-11T18:06:41"
+   "finished_at": "2026-10-12T03:06:41"
   },
   "curated_150|seed3": {
    "set": "curated_150",
@@ -91,7 +91,7 @@
      "rollouts": 50
     }
    },
-   "finished_at": "2026-10-11T19:36:18"
+   "finished_at": "2026-10-12T04:36:18"
   },
   "random_150|seed3": {
    "set": "random_150",
@@ -110,7 +110,7 @@
      "rollouts": 50
     }
    },
-   "finished_at": "2026-10-11T19:57:24"
+   "finished_at": "2026-10-12T04:57:24"
   },
   "train|seed3": {
    "set": "train",
@@ -129,7 +129,7 @@
      "rollouts": 50
     }
    },
-   "finished_at": "2026-10-11T20:18:16"
+   "finished_at": "2026-10-12T05:18:16"
   },
   "random_frames|seed2": {
    "set": "random_frames",
@@ -148,7 +148,7 @@
      "rollouts": 50
     }
    },
-   "finished_at": "2026-10-11T20:39:46"
+   "finished_at": "2026-10-12T05:39:46"
   },
   "stratified_random_150|seed2": {
    "set": "stratified_random_150",
@@ -167,7 +167,7 @@
      "rollouts": 50
     }
    },
-   "finished_at": "2026-10-11T21:00:56"
+   "finished_at": "2026-10-12T06:00:56"
   },
   "random_frames|seed3": {
    "set": "random_frames",
@@ -186,7 +186,7 @@
      "rollouts": 50
     }
    },
-   "finished_at": "2026-10-11T21:20:46"
+   "finished_at": "2026-10-12T06:20:46"
   },
   "stratified_random_150|seed3": {
    "set": "stratified_random_150",
@@ -205,8 +205,9 @@
      "rollouts": 50
     }
    },
-   "finished_at": "2026-10-11T21:41:55"
+   "finished_at": "2026-10-12T06:41:55"
   }
  },
- "note": "Kaggle 화면 출력에서 전사. 같은 Kaggle 환경에서 시드 1을 다시 돌린 결과(선별 47/50·22/30, 무작위 40/50·9/30, 전체 48/50·21/30)가 코랩과 완전히 같아 환경 차이 없음"
+ "note": "Kaggle 화면 출력에서 전사. 같은 Kaggle 환경에서 시드 1을 다시 돌린 결과(선별 47/50·22/30, 무작위 40/50·9/30, 전체 48/50·21/30)가 코랩과 완전히 같아 환경 차이 없음",
+ "time_zone": "KST"
 }

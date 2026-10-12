@@ -48,30 +48,8 @@ workflow:
     - data:
         isInIteration: false
         isInLoop: false
-        sourceType: start
-        targetType: llm
-      id: start-source-translate
-      source: start
-      sourceHandle: source
-      target: translate
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInIteration: false
-        isInLoop: false
-        sourceType: llm
-        targetType: knowledge-retrieval
-      id: translate-source-retrieval
-      source: translate
-      sourceHandle: source
-      target: retrieval
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInIteration: false
-        isInLoop: false
+        iteration_id: null
+        loop_id: null
         sourceType: agent
         targetType: agent
       id: agent-fail-branch-agent_backup
@@ -84,6 +62,22 @@ workflow:
     - data:
         isInIteration: false
         isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: agent
+        targetType: variable-aggregator
+      id: agent-source-agent_out
+      source: agent
+      sourceHandle: source
+      target: agent_out
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
         sourceType: agent
         targetType: answer
       id: agent_backup-fail-branch-ans_agentfail
@@ -96,78 +90,36 @@ workflow:
     - data:
         isInIteration: false
         isInLoop: false
-        sourceType: tool
-        targetType: code
-      id: review-source-plan
-      source: review
+        iteration_id: null
+        loop_id: null
+        sourceType: agent
+        targetType: variable-aggregator
+      id: agent_backup-source-agent_out
+      source: agent_backup
       sourceHandle: source
-      target: plan
+      target: agent_out
       targetHandle: target
       type: custom
       zIndex: 0
     - data:
         isInIteration: false
         isInLoop: false
-        sourceType: tool
-        targetType: answer
-      id: review-fail-branch-ans_toolfail
-      source: review
-      sourceHandle: fail-branch
-      target: ans_toolfail
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInIteration: false
-        isInLoop: false
-        sourceType: code
-        targetType: if-else
-      id: plan-source-route
-      source: plan
+        iteration_id: null
+        loop_id: null
+        sourceType: variable-aggregator
+        targetType: tool
+      id: agent_out-source-review
+      source: agent_out
       sourceHandle: source
-      target: route
+      target: review
       targetHandle: target
       type: custom
       zIndex: 0
     - data:
         isInIteration: false
         isInLoop: false
-        sourceType: if-else
-        targetType: human-input
-      id: route-pass-approval
-      source: route
-      sourceHandle: pass
-      target: approval
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInIteration: false
-        isInLoop: false
-        sourceType: if-else
-        targetType: answer
-      id: route-revise-ans_rev
-      source: route
-      sourceHandle: revise
-      target: ans_rev
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInIteration: false
-        isInLoop: false
-        sourceType: if-else
-        targetType: answer
-      id: route-false-ans_plain
-      source: route
-      sourceHandle: 'false'
-      target: ans_plain
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInIteration: false
-        isInLoop: false
+        iteration_id: null
+        loop_id: null
         sourceType: human-input
         targetType: tool
       id: approval-approve-log_ok
@@ -180,6 +132,8 @@ workflow:
     - data:
         isInIteration: false
         isInLoop: false
+        iteration_id: null
+        loop_id: null
         sourceType: human-input
         targetType: tool
       id: approval-reject-log_no
@@ -192,18 +146,92 @@ workflow:
     - data:
         isInIteration: false
         isInLoop: false
+        iteration_id: null
+        loop_id: null
         sourceType: tool
-        targetType: llm
-      id: log_ok-source-report
-      source: log_ok
+        targetType: code
+      id: coll-source-train_md
+      source: coll
       sourceHandle: source
-      target: report
+      target: train_md
       targetHandle: target
       type: custom
       zIndex: 0
     - data:
         isInIteration: false
         isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: code
+        targetType: agent
+      id: ctx-source-agent
+      source: ctx
+      sourceHandle: source
+      target: agent
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: tool
+        targetType: answer
+      id: log_no-source-ans_no
+      source: log_no
+      sourceHandle: source
+      target: ans_no
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: tool
+        targetType: tool
+      id: log_ok-source-prep
+      source: log_ok
+      sourceHandle: source
+      target: prep
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: code
+        targetType: if-else
+      id: plan-source-route
+      source: plan
+      sourceHandle: source
+      target: route
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: tool
+        targetType: tool
+      id: prep-source-coll
+      source: prep
+      sourceHandle: source
+      target: coll
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
         sourceType: llm
         targetType: answer
       id: report-source-ans_ok
@@ -216,16 +244,8 @@ workflow:
     - data:
         isInIteration: false
         isInLoop: false
-        sourceType: tool
-        targetType: answer
-      id: log_no-source-ans_no
-      source: log_no
-      sourceHandle: source
-      target: ans_no
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
+        iteration_id: null
+        loop_id: null
         sourceType: knowledge-retrieval
         targetType: code
       id: retrieval-source-ctx
@@ -234,143 +254,178 @@ workflow:
       target: ctx
       targetHandle: target
       type: custom
+      zIndex: 0
     - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: tool
+        targetType: answer
+      id: review-fail-branch-ans_toolfail
+      source: review
+      sourceHandle: fail-branch
+      target: ans_toolfail
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: tool
+        targetType: code
+      id: review-source-plan
+      source: review
+      sourceHandle: source
+      target: plan
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: if-else
+        targetType: answer
+      id: route-false-ans_plain
+      source: route
+      sourceHandle: 'false'
+      target: ans_plain
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: if-else
+        targetType: human-input
+      id: route-pass-approval
+      source: route
+      sourceHandle: pass
+      target: approval
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: if-else
+        targetType: answer
+      id: route-revise-ans_rev
+      source: route
+      sourceHandle: revise
+      target: ans_rev
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
         sourceType: code
-        targetType: agent
-      id: ctx-source-agent
-      source: ctx
+        targetType: llm
+      id: train_md-source-report
+      source: train_md
       sourceHandle: source
-      target: agent
+      target: report
       targetHandle: target
       type: custom
+      zIndex: 0
     - data:
-        sourceType: agent
-        targetType: variable-aggregator
-      id: agent-source-agent_out
-      source: agent
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: llm
+        targetType: knowledge-retrieval
+      id: translate-source-retrieval
+      source: translate
       sourceHandle: source
-      target: agent_out
+      target: retrieval
       targetHandle: target
       type: custom
+      zIndex: 0
     - data:
-        sourceType: agent
-        targetType: variable-aggregator
-      id: agent_backup-source-agent_out
-      source: agent_backup
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: if-else
+      id: start-source-ask_result
+      source: start
       sourceHandle: source
-      target: agent_out
+      target: ask_result
       targetHandle: target
       type: custom
+      zIndex: 0
     - data:
-        sourceType: variable-aggregator
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
         targetType: tool
-      id: agent_out-source-review
-      source: agent_out
-      sourceHandle: source
-      target: review
+      id: ask_result-result-coll2
+      source: ask_result
+      sourceHandle: result
+      target: coll2
       targetHandle: target
       type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: tool
+      id: ask_result-rate-coll2
+      source: ask_result
+      sourceHandle: rate
+      target: coll2
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: llm
+      id: ask_result-false-translate
+      source: ask_result
+      sourceHandle: 'false'
+      target: translate
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: tool
+        targetType: code
+      id: coll2-source-res_md
+      source: coll2
+      sourceHandle: source
+      target: res_md
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: answer
+      id: res_md-source-ans_result
+      source: res_md
+      sourceHandle: source
+      target: ans_result
+      targetHandle: target
+      type: custom
+      zIndex: 0
     nodes:
-    - data:
-        title: 시작
-        type: start
-        variables: []
-      height: 72
-      id: start
-      position:
-        x: 30
-        y: 300
-      positionAbsolute:
-        x: 30
-        y: 300
-      type: custom
-      width: 242
-      zIndex: 0
-    - data:
-        context:
-          enabled: false
-          variable_selector: []
-        desc: 한국어 질문을 영어 검색어로 그대로 번역 (키워드 추가 금지)
-        model:
-          completion_params:
-            max_tokens: 200
-            temperature: 0
-          mode: chat
-          name: google/gemma-4-26b-a4b-it
-          provider: langgenius/openrouter/openrouter
-        prompt_template:
-        - role: system
-          text: 'You rewrite a user''s question into an English search query for an
-            English document collection about robot imitation learning datasets (robomimic,
-            robosuite) and demonstration curation papers.
-
-
-            Rules:
-
-            - Translate the question as it is. Keep its meaning; do not answer it.
-
-            - Do not add keywords, method names, or examples that are not in the question.
-
-            - Keep proper nouns, field names, method names, and paper names exactly
-            as written.
-
-            - If the question is already in English, return it unchanged.
-
-            - Output only the English query, one line, with no quotes or explanation.'
-        - role: user
-          text: '{{#sys.query#}}'
-        reasoning_format: separated
-        retry_config:
-          enabled: true
-          max_retries: 2
-          retry_interval: 1000
-        selected: false
-        title: 질문 영어 변환
-        type: llm
-        vision:
-          enabled: false
-      height: 131
-      id: translate
-      position:
-        x: 330
-        y: 300
-      positionAbsolute:
-        x: 330
-        y: 300
-      type: custom
-      width: 241
-      zIndex: 0
-    - data:
-        dataset_ids:
-        - 8eQd8LdouKrx9Y+RhCV9aRof2qWug3NwV4uOrS7TUkFHMDlV46Rjxx8Qu/fLEbs+
-        desc: demo-curation-kb (임베딩 text-embedding-3-large) 하이브리드 검색 + Qwen3 리랭크,
-          Top K 4, 임계값 0.3
-        multiple_retrieval_config:
-          reranking_enable: true
-          reranking_mode: reranking_model
-          reranking_model:
-            model: qwen/qwen3-reranker-8b
-            provider: langgenius/openrouter/openrouter
-          score_threshold: 0.3
-          top_k: 4
-        query_variable_selector:
-        - translate
-        - text
-        retrieval_mode: multiple
-        selected: false
-        title: 근거 검색
-        type: knowledge-retrieval
-      height: 149
-      id: retrieval
-      position:
-        x: 630
-        y: 300
-      positionAbsolute:
-        x: 630
-        y: 300
-      type: custom
-      width: 241
-      zIndex: 0
     - data:
         agent_parameters:
           context:
@@ -392,6 +447,10 @@ workflow:
               - select_demos: analyze_data의 run_id를 받아 예산만큼 시범을 고르고, 비교용 무작위 기준선을
               만든다.
 
+              - train_evaluate: 이 대화에서 승인되어 준비된 학습 계획의 학습 결과(묶음별 성공률, 1주차 성공 기준 판정)를
+              불러온다. 학습을 새로 실행하지는 않는다. 학습 결과는 나중에 시드가 추가되며 바뀔 수 있으므로, 학습 결과를 묻는 질문에는
+              이전 답을 다시 쓰지 말고 매번 이 도구를 호출한다.
+
 
               규칙:
 
@@ -406,12 +465,19 @@ workflow:
               4. 데이터 구조, 선별 방법, 논문 같은 근거 질문이면 도구를 부르지 말고 아래 <context>의 문서만 근거로 답하고,
               끝에 출처(문서 제목과 URL)를 적는다. 근거가 없으면 "근거 문서에서 확인할 수 없습니다. 확인 필요"라고 답한다.
 
-              5. 숫자는 도구 결과에 있는 값만 쓴다. 계산하거나 추정한 숫자를 만들지 않는다. 아직 학습 전이므로 "최적", "가장
-              좋은" 같은 평가 표현을 쓰지 않는다.
+              5. 숫자는 도구 결과에 있는 값만 쓴다. 계산하거나 추정한 숫자를 만들지 않는다. "최적", "가장 좋은" 같은 표현을
+              쓰지 않는다.
 
               6. 도구가 실패하면 실패 사실과 이유를 그대로 알린다.
 
               7. 선별을 마쳤으면 "검수와 학습 승인 단계로 넘어갑니다"라고 알린다.
+
+              9. 학습 결과나 성능 비교를 물으면 이전 대화에 나온 숫자가 있어도 반드시 train_evaluate를 새로 호출하고,
+              그 결과로만 답한다. 실제로 호출하지 않았으면 호출했다고 말하지 않는다. 답의 첫 줄에 결과의 label(예: 예비 결과,
+              시드 수)과 학습 시각을 그대로 쓰고, 비교 판정은 judgement의 verdict 문구(차이 있음, 구분 불가 등)를
+              바꾸지 않고 전한다. 판정은 두 묶음의 비교에 붙는 것이므로 한 묶음에 판정을 붙이지 않는다. status가 not_trained나
+              no_target이면 아직 결과가 없다고 알린다. 학습 실행은 사람 승인 뒤 노트북에서만 한다.
+
 
               8. 답은 한국어로 짧게: 무엇을 했는지, 핵심 수치, 다음 단계.
 
@@ -486,6 +552,32 @@ workflow:
               tool_label: select_demos
               tool_name: select_demos
               type: mcp
+            - enabled: true
+              extra:
+                description: ''
+              parameters:
+                run_id:
+                  auto: 0
+                  value:
+                    type: mixed
+                    value: ''
+                session_id:
+                  auto: 0
+                  value:
+                    type: mixed
+                    value: '{{#sys.conversation_id#}}'
+                stage:
+                  auto: 0
+                  value:
+                    type: mixed
+                    value: collect
+              provider_name: curation-tools
+              provider_show_name: curation-tools
+              settings: {}
+              tool_description: ''
+              tool_label: train_evaluate
+              tool_name: train_evaluate
+              type: mcp
         agent_strategy_label: FunctionCalling
         agent_strategy_name: function_calling
         agent_strategy_provider_name: langgenius/agent/agent
@@ -500,11 +592,13 @@ workflow:
       height: 223
       id: agent
       position:
-        x: 930
+        x: 1540
         y: 300
       positionAbsolute:
-        x: 930
+        x: 1540
         y: 300
+      sourcePosition: null
+      targetPosition: null
       type: custom
       width: 241
       zIndex: 0
@@ -529,6 +623,10 @@ workflow:
               - select_demos: analyze_data의 run_id를 받아 예산만큼 시범을 고르고, 비교용 무작위 기준선을
               만든다.
 
+              - train_evaluate: 이 대화에서 승인되어 준비된 학습 계획의 학습 결과(묶음별 성공률, 1주차 성공 기준 판정)를
+              불러온다. 학습을 새로 실행하지는 않는다. 학습 결과는 나중에 시드가 추가되며 바뀔 수 있으므로, 학습 결과를 묻는 질문에는
+              이전 답을 다시 쓰지 말고 매번 이 도구를 호출한다.
+
 
               규칙:
 
@@ -543,12 +641,19 @@ workflow:
               4. 데이터 구조, 선별 방법, 논문 같은 근거 질문이면 도구를 부르지 말고 아래 <context>의 문서만 근거로 답하고,
               끝에 출처(문서 제목과 URL)를 적는다. 근거가 없으면 "근거 문서에서 확인할 수 없습니다. 확인 필요"라고 답한다.
 
-              5. 숫자는 도구 결과에 있는 값만 쓴다. 계산하거나 추정한 숫자를 만들지 않는다. 아직 학습 전이므로 "최적", "가장
-              좋은" 같은 평가 표현을 쓰지 않는다.
+              5. 숫자는 도구 결과에 있는 값만 쓴다. 계산하거나 추정한 숫자를 만들지 않는다. "최적", "가장 좋은" 같은 표현을
+              쓰지 않는다.
 
               6. 도구가 실패하면 실패 사실과 이유를 그대로 알린다.
 
               7. 선별을 마쳤으면 "검수와 학습 승인 단계로 넘어갑니다"라고 알린다.
+
+              9. 학습 결과나 성능 비교를 물으면 이전 대화에 나온 숫자가 있어도 반드시 train_evaluate를 새로 호출하고,
+              그 결과로만 답한다. 실제로 호출하지 않았으면 호출했다고 말하지 않는다. 답의 첫 줄에 결과의 label(예: 예비 결과,
+              시드 수)과 학습 시각을 그대로 쓰고, 비교 판정은 judgement의 verdict 문구(차이 있음, 구분 불가 등)를
+              바꾸지 않고 전한다. 판정은 두 묶음의 비교에 붙는 것이므로 한 묶음에 판정을 붙이지 않는다. status가 not_trained나
+              no_target이면 아직 결과가 없다고 알린다. 학습 실행은 사람 승인 뒤 노트북에서만 한다.
+
 
               8. 답은 한국어로 짧게: 무엇을 했는지, 핵심 수치, 다음 단계.
 
@@ -624,6 +729,32 @@ workflow:
               tool_label: select_demos
               tool_name: select_demos
               type: mcp
+            - enabled: true
+              extra:
+                description: ''
+              parameters:
+                run_id:
+                  auto: 0
+                  value:
+                    type: mixed
+                    value: ''
+                session_id:
+                  auto: 0
+                  value:
+                    type: mixed
+                    value: '{{#sys.conversation_id#}}'
+                stage:
+                  auto: 0
+                  value:
+                    type: mixed
+                    value: collect
+              provider_name: curation-tools
+              provider_show_name: curation-tools
+              settings: {}
+              tool_description: ''
+              tool_label: train_evaluate
+              tool_name: train_evaluate
+              type: mcp
         agent_strategy_label: FunctionCalling
         agent_strategy_name: function_calling
         agent_strategy_provider_name: langgenius/agent/agent
@@ -638,128 +769,177 @@ workflow:
       height: 223
       id: agent_backup
       position:
-        x: 930
-        y: 520
+        x: 1540
+        y: 620
       positionAbsolute:
-        x: 930
-        y: 520
+        x: 1540
+        y: 620
+      sourcePosition: null
+      targetPosition: null
       type: custom
       width: 241
       zIndex: 0
     - data:
-        error_strategy: fail-branch
-        is_team_authorization: true
-        provider_id: curation-tools
-        provider_name: curation-tools
-        provider_type: mcp
-        retry_config:
-          enabled: true
-          max_retries: 2
-          retry_interval: 1000
-        title: 검수 (review_selection)
-        tool_configurations: {}
-        tool_label: review_selection
-        tool_name: review_selection
-        tool_node_version: '2'
-        tool_parameters:
-          session_id:
-            type: mixed
-            value: '{{#sys.conversation_id#}}'
-        type: tool
-      height: 119
-      id: review
-      position:
-        x: 1230
-        y: 300
-      positionAbsolute:
-        x: 1230
-        y: 300
-      type: custom
-      width: 241
-      zIndex: 0
-    - data:
-        code: "def main(review: list) -> dict:\n    r = review[0] if review else {}\n\
-          \    verdict = r.get(\"verdict\", \"none\")\n    issues = r.get(\"issues\"\
-          , []) + r.get(\"warnings\", [])\n    issues_md = \"\\n\".join(f\"- {i['check']}:\
-          \ {i['detail']}\" for i in issues) or \"- 없음\"\n    plan_md = \"\"\n   \
-          \ if verdict in (\"pass\", \"revise\"):\n        sets = r.get(\"sets\",\
-          \ {})\n        rows = \"\\n\".join(f\"| {k} | {v['n_demos']} | {v['total_frames']:,}\
-          \ |\" for k, v in sets.items())\n        tp = r.get(\"training_plan\", {})\n\
-          \        plan_md = (\n            f\"**선별 결과** run_id `{r.get('run_id')}`\
-          \ (예산 {r.get('budget')}개)\\n\\n\"\n            f\"| 묶음 | 시범 수 | 총 프레임 |\\\
-          n|---|---|---|\\n{rows}\\n| train (전체) | 270 | 56,186 |\\n\\n\"\n      \
-          \      f\"**검수 결과**: {verdict}\\n{issues_md}\\n\\n\"\n            f\"**학습\
-          \ 계획**: 위 {tp.get('n_sets', 0)}개 묶음을 같은 설정(robomimic BC, 시드 1)으로 학습하고 MuJoCo\
-          \ 롤아웃으로 성공률 비교\\n\"\n            f\"예상 시간 약 {tp.get('est_minutes', 0)}분\
-          \ ({tp.get('note', '')}). 승인하면 코랩 GPU를 사용하며 되돌릴 수 없습니다.\"\n        )\n \
-          \   return {\"verdict\": verdict, \"run_id\": r.get(\"run_id\") or \"\"\
-          , \"plan_md\": plan_md, \"issues_md\": issues_md}"
-        code_language: python3
-        outputs:
-          issues_md:
-            children: null
-            type: string
-          plan_md:
-            children: null
-            type: string
-          run_id:
-            children: null
-            type: string
-          verdict:
-            children: null
-            type: string
-        title: 검수 결과 정리
-        type: code
+        output_type: string
+        title: 에이전트 답 모으기
+        type: variable-aggregator
         variables:
-        - value_selector:
-          - review
-          - json
-          variable: review
-      height: 51
-      id: plan
+        - - agent
+          - text
+        - - agent_backup
+          - text
+      height: 135
+      id: agent_out
       position:
-        x: 1530
+        x: 1840
         y: 300
       positionAbsolute:
-        x: 1530
+        x: 1840
         y: 300
+      sourcePosition: null
+      targetPosition: null
       type: custom
       width: 241
       zIndex: 0
     - data:
-        cases:
-        - case_id: pass
-          conditions:
-          - comparison_operator: is
-            id: c_pass
-            value: pass
-            varType: string
-            variable_selector:
-            - plan
-            - verdict
-          id: pass
-          logical_operator: and
-        - case_id: revise
-          conditions:
-          - comparison_operator: is
-            id: c_rev
-            value: revise
-            varType: string
-            variable_selector:
-            - plan
-            - verdict
-          id: revise
-          logical_operator: and
-        title: 검수 판정
-        type: if-else
-      height: 195
-      id: route
+        answer: 에이전트 모델 호출에 실패했습니다(주 모델과 예비 모델 모두). 잠시 후 다시 시도해 주세요.
+        title: 답변 (에이전트 실패)
+        type: answer
+        variables: []
+      height: 131
+      id: ans_agentfail
       position:
-        x: 1830
+        x: 1840
+        y: 820
+      positionAbsolute:
+        x: 1840
+        y: 820
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#agent_out.output#}}
+
+
+          ---
+
+          학습 계획이 **거부**되어 학습을 진행하지 않습니다. 예산이나 설정을 바꿔 다시 요청할 수 있습니다.'
+        title: 답변 (거부)
+        type: answer
+        variables: []
+      height: 149
+      id: ans_no
+      position:
+        x: 3640
+        y: 620
+      positionAbsolute:
+        x: 3640
+        y: 620
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#agent_out.output#}}
+
+
+          ---
+
+          **승인되었습니다.**
+
+
+          {{#report.text#}}
+
+
+
+          ---
+
+
+          {{#train_md.md#}}'
+        title: 답변 (승인)
+        type: answer
+        variables: []
+      height: 138
+      id: ans_ok
+      position:
+        x: 4840
         y: 300
       positionAbsolute:
-        x: 1830
+        x: 4840
         y: 300
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#agent_out.output#}}'
+        title: 답변 (선별 없음)
+        type: answer
+        variables: []
+      height: 101
+      id: ans_plain
+      position:
+        x: 3040
+        y: 820
+      positionAbsolute:
+        x: 3040
+        y: 820
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#agent_out.output#}}
+
+
+          ---
+
+          **검수에서 문제가 발견되어 학습 승인 단계로 넘어가지 않습니다.**
+
+
+          {{#plan.issues_md#}}'
+        title: 답변 (검수 반려)
+        type: answer
+        variables: []
+      height: 151
+      id: ans_rev
+      position:
+        x: 3040
+        y: 620
+      positionAbsolute:
+        x: 3040
+        y: 620
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#agent_out.output#}}
+
+
+          ---
+
+          도구 서버에 연결할 수 없어 검수를 하지 못했습니다. 도구 서버(curation-tools)가 켜져 있는지 확인한 뒤 다시 요청해
+          주세요.'
+        title: 답변 (도구 실패)
+        type: answer
+        variables: []
+      height: 149
+      id: ans_toolfail
+      position:
+        x: 2440
+        y: 620
+      positionAbsolute:
+        x: 2440
+        y: 620
+      sourcePosition: null
+      targetPosition: null
       type: custom
       width: 241
       zIndex: 0
@@ -790,11 +970,13 @@ workflow:
       height: 188
       id: approval
       position:
-        x: 2130
-        y: 150
+        x: 3040
+        y: 300
       positionAbsolute:
-        x: 2130
-        y: 150
+        x: 3040
+        y: 300
+      sourcePosition: null
+      targetPosition: null
       type: custom
       width: 241
       zIndex: 0
@@ -807,118 +989,58 @@ workflow:
           enabled: true
           max_retries: 2
           retry_interval: 1000
-        title: 승인 기록
+        title: 학습 결과 조회 (train_evaluate collect)
         tool_configurations: {}
-        tool_label: log_event
-        tool_name: log_event
+        tool_label: train_evaluate
+        tool_name: train_evaluate
         tool_node_version: '2'
         tool_parameters:
-          detail:
-            type: mixed
-            value: 학습 계획 승인
-          event:
-            type: mixed
-            value: approved
-          run_id:
-            type: mixed
-            value: '{{#plan.run_id#}}'
           session_id:
             type: mixed
             value: '{{#sys.conversation_id#}}'
           stage:
             type: mixed
-            value: approval
+            value: collect
         type: tool
       height: 83
-      id: log_ok
+      id: coll
       position:
-        x: 2430
-        y: 60
+        x: 3940
+        y: 300
       positionAbsolute:
-        x: 2430
-        y: 60
+        x: 3940
+        y: 300
+      sourcePosition: null
+      targetPosition: null
       type: custom
       width: 241
       zIndex: 0
     - data:
-        context:
-          enabled: false
-          variable_selector: []
-        model:
-          completion_params:
-            max_tokens: 1024
-            temperature: 0
-          mode: chat
-          name: google/gemma-4-26b-a4b-it
-          provider: langgenius/openrouter/openrouter
-        prompt_template:
-        - role: system
-          text: '너는 로봇 시범 데이터 선별 에이전트의 보고 담당이다. 사람이 학습 계획을 승인했다.
-
-            아래 자료로 한국어 최종 보고를 작성하라.
-
-            규칙:
-
-            - 숫자는 자료에 있는 값만 그대로 쓴다. 새로 계산하거나 추정하지 않는다.
-
-            - 아직 학습 전이므로 "최적", "가장 좋은", "성능 향상" 같은 결과 평가 표현을 쓰지 않는다.
-
-            - 근거 출처는 자료에 문서 제목이나 URL이 있을 때만 적고, 없으면 생략한다.
-
-            형식: 요약 1문장 / 선별 결과 핵심 수치 3~5줄 / 다음 단계(코랩 학습 작업 준비) 1줄 / 근거 출처(있으면).
-
-
-            [에이전트 작업 내용]
-
-            {{#agent_out.output#}}
-
-
-            [검수와 학습 계획]
-
-            {{#plan.plan_md#}}'
-        - role: user
-          text: '{{#sys.query#}}'
-        reasoning_format: separated
-        retry_config:
-          enabled: true
-          max_retries: 1
-          retry_interval: 1000
-        title: 최종 보고 (Gemma)
-        type: llm
-        vision:
-          enabled: false
-      height: 87
-      id: report
+        code: "def main(chunks: list) -> dict:\n    parts = [c.get(\"content\", \"\
+          \") for c in (chunks or []) if c.get(\"content\")]\n    return {\"text\"\
+          : \"\\n\\n---\\n\\n\".join(parts) if parts else \"(검색된 문서 없음)\"}"
+        code_language: python3
+        outputs:
+          text:
+            children: null
+            type: string
+        title: 근거 정리
+        type: code
+        variables:
+        - value_selector:
+          - retrieval
+          - result
+          variable: chunks
+      height: 51
+      id: ctx
       position:
-        x: 2730
-        y: 60
+        x: 1240
+        y: 300
       positionAbsolute:
-        x: 2730
-        y: 60
-      type: custom
-      width: 241
-      zIndex: 0
-    - data:
-        answer: '{{#agent_out.output#}}
-
-
-          ---
-
-          **승인되었습니다.**
-
-
-          {{#report.text#}}'
-        title: 답변 (승인)
-        type: answer
-        variables: []
-      height: 119
-      id: ans_ok
-      position:
-        x: 3030
-        y: 60
-      positionAbsolute:
-        x: 3030
-        y: 60
+        x: 1240
+        y: 300
+      sourcePosition: null
+      targetPosition: null
       type: custom
       width: 241
       zIndex: 0
@@ -956,150 +1078,641 @@ workflow:
       height: 83
       id: log_no
       position:
-        x: 2430
-        y: 240
+        x: 3340
+        y: 620
       positionAbsolute:
-        x: 2430
-        y: 240
+        x: 3340
+        y: 620
+      sourcePosition: null
+      targetPosition: null
       type: custom
       width: 241
       zIndex: 0
     - data:
-        answer: '{{#agent_out.output#}}
-
-
-          ---
-
-          학습 계획이 **거부**되어 학습을 진행하지 않습니다. 예산이나 설정을 바꿔 다시 요청할 수 있습니다.'
-        title: 답변 (거부)
-        type: answer
-        variables: []
-      height: 149
-      id: ans_no
+        is_team_authorization: true
+        provider_id: curation-tools
+        provider_name: curation-tools
+        provider_type: mcp
+        retry_config:
+          enabled: true
+          max_retries: 2
+          retry_interval: 1000
+        title: 승인 기록
+        tool_configurations: {}
+        tool_label: log_event
+        tool_name: log_event
+        tool_node_version: '2'
+        tool_parameters:
+          detail:
+            type: mixed
+            value: 학습 계획 승인
+          event:
+            type: mixed
+            value: approved
+          run_id:
+            type: mixed
+            value: '{{#plan.run_id#}}'
+          session_id:
+            type: mixed
+            value: '{{#sys.conversation_id#}}'
+          stage:
+            type: mixed
+            value: approval
+        type: tool
+      height: 83
+      id: log_ok
       position:
-        x: 2730
-        y: 240
+        x: 3340
+        y: 300
       positionAbsolute:
-        x: 2730
-        y: 240
+        x: 3340
+        y: 300
+      sourcePosition: null
+      targetPosition: null
       type: custom
       width: 241
       zIndex: 0
     - data:
-        answer: '{{#agent_out.output#}}
-
-
-          ---
-
-          **검수에서 문제가 발견되어 학습 승인 단계로 넘어가지 않습니다.**
-
-
-          {{#plan.issues_md#}}'
-        title: 답변 (검수 반려)
-        type: answer
-        variables: []
-      height: 151
-      id: ans_rev
-      position:
-        x: 2130
-        y: 400
-      positionAbsolute:
-        x: 2130
-        y: 400
-      type: custom
-      width: 241
-      zIndex: 0
-    - data:
-        answer: '{{#agent_out.output#}}'
-        title: 답변 (선별 없음)
-        type: answer
-        variables: []
-      height: 101
-      id: ans_plain
-      position:
-        x: 2130
-        y: 560
-      positionAbsolute:
-        x: 2130
-        y: 560
-      type: custom
-      width: 241
-      zIndex: 0
-    - data:
-        answer: '{{#agent_out.output#}}
-
-
-          ---
-
-          도구 서버에 연결할 수 없어 검수를 하지 못했습니다. 도구 서버(curation-tools)가 켜져 있는지 확인한 뒤 다시 요청해
-          주세요.'
-        title: 답변 (도구 실패)
-        type: answer
-        variables: []
-      height: 149
-      id: ans_toolfail
-      position:
-        x: 1530
-        y: 560
-      positionAbsolute:
-        x: 1530
-        y: 560
-      type: custom
-      width: 241
-      zIndex: 0
-    - data:
-        answer: 에이전트 모델 호출에 실패했습니다(주 모델과 예비 모델 모두). 잠시 후 다시 시도해 주세요.
-        title: 답변 (에이전트 실패)
-        type: answer
-        variables: []
-      height: 131
-      id: ans_agentfail
-      position:
-        x: 1230
-        y: 700
-      positionAbsolute:
-        x: 1230
-        y: 700
-      type: custom
-      width: 241
-      zIndex: 0
-    - data:
-        code: "def main(chunks: list) -> dict:\n    parts = [c.get(\"content\", \"\
-          \") for c in (chunks or []) if c.get(\"content\")]\n    return {\"text\"\
-          : \"\\n\\n---\\n\\n\".join(parts) if parts else \"(검색된 문서 없음)\"}"
+        code: "def main(review: list) -> dict:\n    r = review[0] if review else {}\n\
+          \    verdict = r.get(\"verdict\", \"none\")\n    issues = r.get(\"issues\"\
+          , []) + r.get(\"warnings\", [])\n    issues_md = \"\\n\".join(f\"- {i['check']}:\
+          \ {i['detail']}\" for i in issues) or \"- 없음\"\n    plan_md = \"\"\n   \
+          \ if verdict in (\"pass\", \"revise\"):\n        sets = r.get(\"sets\",\
+          \ {})\n        rows = \"\\n\".join(f\"| {k} | {v['n_demos']} | {v['total_frames']:,}\
+          \ |\" for k, v in sets.items())\n        tp = r.get(\"training_plan\", {})\n\
+          \        plan_md = (\n            f\"**선별 결과** run_id `{r.get('run_id')}`\
+          \ (예산 {r.get('budget')}개)\\n\\n\"\n            f\"| 묶음 | 시범 수 | 총 프레임 |\\\
+          n|---|---|---|\\n{rows}\\n| train (전체) | 270 | 56,186 |\\n\\n\"\n      \
+          \      f\"**검수 결과**: {verdict}\\n{issues_md}\\n\\n\"\n            f\"**학습\
+          \ 계획**: 위 {tp.get('n_sets', 0)}개 묶음을 같은 설정(robomimic BC-RNN 400 epoch, 시드\
+          \ 1)으로 학습하고 MuJoCo 롤아웃으로 성공률 비교\\n\"\n            f\"예상 시간 약 {tp.get('est_minutes',\
+          \ 0)}분 ({tp.get('note', '')}). 승인하면 노트북 GPU(코랩 또는 Kaggle)를 사용하며 되돌릴 수 없습니다.\"\
+          \n        )\n    return {\"verdict\": verdict, \"run_id\": r.get(\"run_id\"\
+          ) or \"\", \"plan_md\": plan_md, \"issues_md\": issues_md}"
         code_language: python3
         outputs:
-          text:
+          issues_md:
             children: null
             type: string
-        title: 근거 정리
+          plan_md:
+            children: null
+            type: string
+          run_id:
+            children: null
+            type: string
+          verdict:
+            children: null
+            type: string
+        title: 검수 결과 정리
         type: code
         variables:
         - value_selector:
-          - retrieval
-          - result
-          variable: chunks
-      height: 100
-      id: ctx
+          - review
+          - json
+          variable: review
+      height: 51
+      id: plan
       position:
-        x: 780
-        y: 450
+        x: 2440
+        y: 300
+      positionAbsolute:
+        x: 2440
+        y: 300
+      sourcePosition: null
+      targetPosition: null
       type: custom
-      width: 244
+      width: 241
+      zIndex: 0
     - data:
-        output_type: string
-        title: 에이전트 답 모으기
-        type: variable-aggregator
-        variables:
-        - - agent
-          - text
-        - - agent_backup
-          - text
-      height: 100
-      id: agent_out
+        is_team_authorization: true
+        provider_id: curation-tools
+        provider_name: curation-tools
+        provider_type: mcp
+        retry_config:
+          enabled: true
+          max_retries: 2
+          retry_interval: 1000
+        title: 학습 계획 (train_evaluate prepare)
+        tool_configurations: {}
+        tool_label: train_evaluate
+        tool_name: train_evaluate
+        tool_node_version: '2'
+        tool_parameters:
+          session_id:
+            type: mixed
+            value: '{{#sys.conversation_id#}}'
+          stage:
+            type: mixed
+            value: prepare
+        type: tool
+      height: 83
+      id: prep
       position:
-        x: 1100
-        y: 600
+        x: 3640
+        y: 300
+      positionAbsolute:
+        x: 3640
+        y: 300
+      sourcePosition: null
+      targetPosition: null
       type: custom
-      width: 244
+      width: 241
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            max_tokens: 1024
+            temperature: 0
+          mode: chat
+          name: google/gemma-4-26b-a4b-it
+          provider: langgenius/openrouter/openrouter
+        prompt_template:
+        - role: system
+          text: '너는 로봇 시범 데이터 선별 에이전트의 보고 담당이다. 사람이 학습 계획을 승인했다.
+
+            아래 자료로 한국어 최종 보고를 작성하라.
+
+            규칙:
+
+            - 숫자는 자료에 있는 값만 그대로 쓴다. 새로 계산하거나 추정하지 않는다.
+
+            - "최적", "가장 좋은" 같은 표현을 쓰지 않는다. 학습 결과가 없으면 성능 평가 표현을 쓰지 않는다.
+
+
+            - 학습 결과의 성공률이나 판정은 쓰지 않는다. 답변 아래에 코드가 만든 표와 판정이 붙으므로 "학습 결과는 아래 표 참고"라고만
+            쓴다. 미리 실행한 결과면 그 사실을 밝힌다.
+
+            - 근거 출처는 자료에 문서 제목이나 URL이 있을 때만 적고, 없으면 생략한다.
+
+            형식: 요약 1문장 / 선별 결과 핵심 수치 3~5줄 / 학습 결과 상태 1줄 / 다음 단계 1줄 / 근거 출처(있으면).
+
+
+            [에이전트 작업 내용]
+
+            {{#agent_out.output#}}
+
+
+            [검수와 학습 계획]
+
+            {{#plan.plan_md#}}
+
+
+            [학습 결과 상태]
+
+            {{#train_md.brief#}}'
+        - role: user
+          text: '{{#sys.query#}}'
+        reasoning_format: separated
+        retry_config:
+          enabled: true
+          max_retries: 1
+          retry_interval: 1000
+        title: 최종 보고 (Gemma)
+        type: llm
+        vision:
+          enabled: false
+      height: 87
+      id: report
+      position:
+        x: 4540
+        y: 300
+      positionAbsolute:
+        x: 4540
+        y: 300
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        dataset_ids:
+        - 8eQd8LdouKrx9Y+RhCV9aRof2qWug3NwV4uOrS7TUkFHMDlV46Rjxx8Qu/fLEbs+
+        desc: demo-curation-kb (임베딩 text-embedding-3-large) 하이브리드 검색 + Qwen3 리랭크,
+          Top K 4, 임계값 0.3
+        multiple_retrieval_config:
+          reranking_enable: true
+          reranking_mode: reranking_model
+          reranking_model:
+            model: qwen/qwen3-reranker-8b
+            provider: langgenius/openrouter/openrouter
+          score_threshold: 0.3
+          top_k: 4
+        query_variable_selector:
+        - translate
+        - text
+        retrieval_mode: multiple
+        selected: false
+        title: 근거 검색
+        type: knowledge-retrieval
+      height: 111
+      id: retrieval
+      position:
+        x: 940
+        y: 300
+      positionAbsolute:
+        x: 940
+        y: 300
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        error_strategy: fail-branch
+        is_team_authorization: true
+        provider_id: curation-tools
+        provider_name: curation-tools
+        provider_type: mcp
+        retry_config:
+          enabled: true
+          max_retries: 2
+          retry_interval: 1000
+        title: 검수 (review_selection)
+        tool_configurations: {}
+        tool_label: review_selection
+        tool_name: review_selection
+        tool_node_version: '2'
+        tool_parameters:
+          session_id:
+            type: mixed
+            value: '{{#sys.conversation_id#}}'
+        type: tool
+      height: 119
+      id: review
+      position:
+        x: 2140
+        y: 300
+      positionAbsolute:
+        x: 2140
+        y: 300
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        cases:
+        - case_id: pass
+          conditions:
+          - comparison_operator: is
+            id: c_pass
+            value: pass
+            varType: string
+            variable_selector:
+            - plan
+            - verdict
+          id: pass
+          logical_operator: and
+        - case_id: revise
+          conditions:
+          - comparison_operator: is
+            id: c_rev
+            value: revise
+            varType: string
+            variable_selector:
+            - plan
+            - verdict
+          id: revise
+          logical_operator: and
+        title: 검수 판정
+        type: if-else
+      height: 195
+      id: route
+      position:
+        x: 2740
+        y: 300
+      positionAbsolute:
+        x: 2740
+        y: 300
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        title: 시작
+        type: start
+        variables: []
+      height: 72
+      id: start
+      position:
+        x: 40
+        y: 300
+      positionAbsolute:
+        x: 40
+        y: 300
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 242
+      zIndex: 0
+    - data:
+        code: "def main(prep: list, coll: list) -> dict:\n    p = prep[0] if prep\
+          \ else {}\n    c = coll[0] if coll else {}\n    lines = []\n    if p.get(\"\
+          status\") == \"prepared\":\n        cfg = p.get(\"config\", {})\n      \
+          \  lines.append(f\"**학습 계획** 지문 `{p.get('fingerprint')}`, 묶음 {p.get('n_sets')}개,\
+          \ {str(cfg.get('algo', '')).upper()} {cfg.get('num_epochs')} epoch, 예상 약\
+          \ {p.get('est_minutes')}분\")\n    else:\n        lines.append(f\"학습 계획을\
+          \ 만들지 못했습니다: {p.get('detail', p.get('status', '알 수 없음'))}\")\n    st = c.get(\"\
+          status\")\n    if st in (\"complete\", \"partial\"):\n        head = \"\
+          같은 선별 결과와 설정으로 미리 실행한 학습 결과\" if c.get(\"reused\") else \"학습 결과\"\n    \
+          \    lines.append(f\"\\n**{head}** (학습 시각 {c.get('trained_at')}{', 추가 시드\
+          \ ' + str(c.get('seeds_trained_at')) if c.get('seeds_trained_at') else ''})\
+          \ / {c.get('label')}\")\n        lines.append(\"\\n| 묶음 | 시범 수 | 시드 수 |\
+          \ 성공률 | 95% 신뢰구간 | 200 epoch |\\n|---|---|---|---|---|---|\")\n        for\
+          \ r in c.get(\"table\", []):\n            if \"success_rate\" not in r:\n\
+          \                lines.append(f\"| {r['set']} | {r['n_demos']} | - | 결과\
+          \ 없음 | - | - |\")\n                continue\n            e = r.get(\"early\"\
+          )\n            es = f\"{e['success_rate']:.0%}\" if e else \"-\"\n     \
+          \       lines.append(f\"| {r['set']} | {r['n_demos']} | {r.get('n_seeds',\
+          \ 1)} | {r['success_rate']:.0%} ({r['success']}/{r['rollouts']}) | {r['ci95'][0]:.0%}~{r['ci95'][1]:.0%}\
+          \ | {es} |\")\n        names = {\"gain_vs_random\": \"선별 - 무작위 (1주차 기준:\
+          \ +5%p 이상)\", \"drop_vs_full\": \"전체 - 선별 (1주차 기준: 하락 5%p 이내)\",\n     \
+          \            \"early_gain_vs_random\": \"학습 속도, 200 epoch 선별 - 무작위\", \"\
+          same_frames\": \"같은 프레임 수에서 선별 - 무작위\",\n                 \"effect_allocation\"\
+          : \"칸별 배분 효과\", \"effect_quality\": \"품질 점수 효과\"}\n        j = c.get(\"\
+          judgement\", {})\n        lines.append(\"\\n**판정** (코드가 계산)\")\n       \
+          \ if \"validity\" in j:\n            lines.append(f\"- {j['validity']}\"\
+          )\n        for k, label in names.items():\n            if k in j:\n    \
+          \            x = j[k]\n                lines.append(f\"- {label}: {x['diff']\
+          \ * 100:+.0f}%p (95% 신뢰구간 {x['ci95'][0] * 100:+.0f}~{x['ci95'][1] * 100:+.0f}%p)\
+          \ → {x['verdict']}\")\n    elif st == \"not_trained\":\n        lines.append(\"\
+          \\n아직 학습 결과가 없습니다. 노트북에서 학습을 돌리고 결과를 저장하면 '학습 결과 보여줘'로 볼 수 있습니다.\")\n  \
+          \  else:\n        lines.append(f\"\\n학습 결과를 불러오지 못했습니다: {c.get('detail',\
+          \ st)}\")\n    if st in (\"complete\", \"partial\"):\n        brief = (\"\
+          같은 선별 결과와 설정으로 미리 실행한 학습 결과가 있다\" if c.get(\"reused\") else \"학습 결과가 있다\"\
+          ) + f\" (라벨: {c.get('label')}). 수치와 판정은 답변 아래 표에 코드가 붙인다\"\n    elif st\
+          \ == \"not_trained\":\n        brief = \"학습 계획만 준비했고 학습 결과는 아직 없다. 다음 단계는\
+          \ 노트북(코랩 또는 Kaggle)에서 학습을 실행하는 것\"\n    else:\n        brief = \"학습 결과를\
+          \ 불러오지 못했다\"\n    return {\"md\": \"\\n\".join(lines), \"status\": str(st),\
+          \ \"brief\": brief}"
+        code_language: python3
+        outputs:
+          brief:
+            children: null
+            type: string
+          md:
+            children: null
+            type: string
+          status:
+            children: null
+            type: string
+        title: 학습 결과 정리
+        type: code
+        variables:
+        - value_selector:
+          - prep
+          - json
+          variable: prep
+        - value_selector:
+          - coll
+          - json
+          variable: coll
+      height: 51
+      id: train_md
+      position:
+        x: 4240
+        y: 300
+      positionAbsolute:
+        x: 4240
+        y: 300
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 한국어 질문을 영어 검색어로 그대로 번역 (키워드 추가 금지)
+        model:
+          completion_params:
+            max_tokens: 200
+            temperature: 0
+          mode: chat
+          name: google/gemma-4-26b-a4b-it
+          provider: langgenius/openrouter/openrouter
+        prompt_template:
+        - role: system
+          text: 'You rewrite a user''s question into an English search query for an
+            English document collection about robot imitation learning datasets (robomimic,
+            robosuite) and demonstration curation papers.
+
+
+            Rules:
+
+            - Translate the question as it is. Keep its meaning; do not answer it.
+
+            - Do not add keywords, method names, or examples that are not in the question.
+
+            - Keep proper nouns, field names, method names, and paper names exactly
+            as written.
+
+            - If the question is already in English, return it unchanged.
+
+            - Output only the English query, one line, with no quotes or explanation.'
+        - role: user
+          text: '{{#sys.query#}}'
+        reasoning_format: separated
+        retry_config:
+          enabled: true
+          max_retries: 2
+          retry_interval: 1000
+        selected: false
+        title: 질문 영어 변환
+        type: llm
+        vision:
+          enabled: false
+      height: 131
+      id: translate
+      position:
+        x: 640
+        y: 300
+      positionAbsolute:
+        x: 640
+        y: 300
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        cases:
+        - case_id: result
+          conditions:
+          - comparison_operator: contains
+            id: c_r1
+            value: 학습 결과
+            varType: string
+            variable_selector:
+            - sys
+            - query
+          - comparison_operator: not contains
+            id: c_r2
+            value: 골라
+            varType: string
+            variable_selector:
+            - sys
+            - query
+          id: result
+          logical_operator: and
+        - case_id: rate
+          conditions:
+          - comparison_operator: contains
+            id: c_r3
+            value: 성공률
+            varType: string
+            variable_selector:
+            - sys
+            - query
+          - comparison_operator: not contains
+            id: c_r4
+            value: 골라
+            varType: string
+            variable_selector:
+            - sys
+            - query
+          id: rate
+          logical_operator: and
+        title: 학습 결과 질문?
+        type: if-else
+      height: 150
+      id: ask_result
+      position:
+        x: 340
+        y: 300
+      positionAbsolute:
+        x: 340
+        y: 300
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        is_team_authorization: true
+        provider_id: curation-tools
+        provider_name: curation-tools
+        provider_type: mcp
+        retry_config:
+          enabled: true
+          max_retries: 2
+          retry_interval: 1000
+        title: 학습 결과 조회 (collect)
+        tool_configurations: {}
+        tool_label: train_evaluate
+        tool_name: train_evaluate
+        tool_node_version: '2'
+        tool_parameters:
+          session_id:
+            type: mixed
+            value: '{{#sys.conversation_id#}}'
+          stage:
+            type: mixed
+            value: collect
+        type: tool
+      height: 83
+      id: coll2
+      position:
+        x: 640
+        y: 20
+      positionAbsolute:
+        x: 640
+        y: 20
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: "def main(coll: list) -> dict:\n    p = {\"status\": \"skip\"}\n   \
+          \ c = coll[0] if coll else {}\n    lines = []\n    if p.get(\"status\")\
+          \ == \"skip\":\n        pass\n    elif p.get(\"status\") == \"prepared\"\
+          :\n        cfg = p.get(\"config\", {})\n        lines.append(f\"**학습 계획**\
+          \ 지문 `{p.get('fingerprint')}`, 묶음 {p.get('n_sets')}개, {str(cfg.get('algo',\
+          \ '')).upper()} {cfg.get('num_epochs')} epoch, 예상 약 {p.get('est_minutes')}분\"\
+          )\n    else:\n        lines.append(f\"학습 계획을 만들지 못했습니다: {p.get('detail',\
+          \ p.get('status', '알 수 없음'))}\")\n    st = c.get(\"status\")\n    if st\
+          \ in (\"complete\", \"partial\"):\n        head = \"같은 선별 결과와 설정으로 미리 실행한\
+          \ 학습 결과\" if c.get(\"reused\") else \"학습 결과\"\n        lines.append(f\"\\\
+          n**{head}** (학습 시각 {c.get('trained_at')}{', 추가 시드 ' + str(c.get('seeds_trained_at'))\
+          \ if c.get('seeds_trained_at') else ''}) / {c.get('label')}\")\n       \
+          \ lines.append(\"\\n| 묶음 | 시범 수 | 시드 수 | 성공률 | 95% 신뢰구간 | 200 epoch |\\\
+          n|---|---|---|---|---|---|\")\n        for r in c.get(\"table\", []):\n\
+          \            if \"success_rate\" not in r:\n                lines.append(f\"\
+          | {r['set']} | {r['n_demos']} | - | 결과 없음 | - | - |\")\n               \
+          \ continue\n            e = r.get(\"early\")\n            es = f\"{e['success_rate']:.0%}\"\
+          \ if e else \"-\"\n            lines.append(f\"| {r['set']} | {r['n_demos']}\
+          \ | {r.get('n_seeds', 1)} | {r['success_rate']:.0%} ({r['success']}/{r['rollouts']})\
+          \ | {r['ci95'][0]:.0%}~{r['ci95'][1]:.0%} | {es} |\")\n        names = {\"\
+          gain_vs_random\": \"선별 - 무작위 (1주차 기준: +5%p 이상)\", \"drop_vs_full\": \"전체\
+          \ - 선별 (1주차 기준: 하락 5%p 이내)\",\n                 \"early_gain_vs_random\"\
+          : \"학습 속도, 200 epoch 선별 - 무작위\", \"same_frames\": \"같은 프레임 수에서 선별 - 무작위\"\
+          ,\n                 \"effect_allocation\": \"칸별 배분 효과\", \"effect_quality\"\
+          : \"품질 점수 효과\"}\n        j = c.get(\"judgement\", {})\n        lines.append(\"\
+          \\n**판정** (코드가 계산)\")\n        if \"validity\" in j:\n            lines.append(f\"\
+          - {j['validity']}\")\n        for k, label in names.items():\n         \
+          \   if k in j:\n                x = j[k]\n                lines.append(f\"\
+          - {label}: {x['diff'] * 100:+.0f}%p (95% 신뢰구간 {x['ci95'][0] * 100:+.0f}~{x['ci95'][1]\
+          \ * 100:+.0f}%p) → {x['verdict']}\")\n    elif st == \"not_trained\":\n\
+          \        lines.append(\"\\n아직 학습 결과가 없습니다. 노트북에서 학습을 돌리고 결과를 저장하면 '학습 결과\
+          \ 보여줘'로 볼 수 있습니다.\")\n    elif st == \"no_target\":\n        lines.append(\"\
+          이 대화에는 승인된 학습 계획이 없습니다. 먼저 시범을 골라 학습을 승인하면 결과를 볼 수 있습니다.\")\n    else:\n\
+          \        lines.append(f\"\\n학습 결과를 불러오지 못했습니다: {c.get('detail', st)}\")\n\
+          \    if st in (\"complete\", \"partial\"):\n        brief = (\"같은 선별 결과와\
+          \ 설정으로 미리 실행한 학습 결과가 있다\" if c.get(\"reused\") else \"학습 결과가 있다\") + f\"\
+          \ (라벨: {c.get('label')}). 수치와 판정은 답변 아래 표에 코드가 붙인다\"\n    elif st == \"\
+          not_trained\":\n        brief = \"학습 계획만 준비했고 학습 결과는 아직 없다. 다음 단계는 노트북(코랩\
+          \ 또는 Kaggle)에서 학습을 실행하는 것\"\n    else:\n        brief = \"학습 결과를 불러오지 못했다\"\
+          \n    return {\"md\": \"\\n\".join(lines), \"status\": str(st), \"brief\"\
+          : brief}"
+        code_language: python3
+        outputs:
+          brief:
+            children: null
+            type: string
+          md:
+            children: null
+            type: string
+          status:
+            children: null
+            type: string
+        title: 학습 결과 정리 (질문용)
+        type: code
+        variables:
+        - value_selector:
+          - coll2
+          - json
+          variable: coll
+      height: 51
+      id: res_md
+      position:
+        x: 940
+        y: 20
+      positionAbsolute:
+        x: 940
+        y: 20
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#res_md.md#}}'
+        title: 답변 (학습 결과)
+        type: answer
+        variables: []
+      height: 101
+      id: ans_result
+      position:
+        x: 1240
+        y: 20
+      positionAbsolute:
+        x: 1240
+        y: 20
+      type: custom
+      width: 241
+      zIndex: 0
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0.35
   rag_pipeline_variables: []
