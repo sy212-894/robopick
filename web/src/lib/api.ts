@@ -121,4 +121,6 @@ export const getOverview = () => getJSON<Overview>('/api/overview')
 export const getResults = () => getJSON<Results>('/api/results')
 export const getRuns = () => getJSON<{ runs: RunRow[] }>('/api/runs')
 export const getRun = (sid: string) => getJSON<{ session_id: string; events: RunEvent[] }>(`/api/runs/${sid}`)
-export const getDoc = (file: string) => getJSON<Doc>(`/api/docs/${encodeURIComponent(file)}`)
+export type CheckResult = { verdict: 'pass' | 'check' | 'no_runs'; numbers?: number; unmatched?: string[]; run_ids?: string[]; detail?: string }
+export const postCheck = (sid: string) => postJSON<CheckResult>(`/api/check/${sid}`, {})
+export const getDoc =(file: string) => getJSON<Doc>(`/api/docs/${encodeURIComponent(file)}`)
