@@ -36,6 +36,7 @@ class Settings:
     runs_root: Path
     events_path: Path
     web_dist: Path
+    kb_dir: Path
 
 
 def load() -> Settings:
@@ -50,4 +51,6 @@ def load() -> Settings:
         events_path=Path(env.get("EVENTS_PATH", "C:/curation-data/logs/events.jsonl")),
         # 화면 빌드 결과. OneDrive 안(web/dist)에 쓰면 빌드가 죽어서 밖에 둔다 (web/vite.config.ts와 같은 값)
         web_dist=Path(env.get("WEB_DIST", "C:/curation-data/web-dist")),
+        # 지식베이스(demo-curation-kb)에 올린 원본 문서. 3주차 과제 폴더에 있다
+        kb_dir=Path(env.get("KB_DIR", str(REPO.parent / "3주차" / "dify_rag" / "knowledge"))),
     )
