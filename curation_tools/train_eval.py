@@ -323,12 +323,23 @@ def paired_diff(doc: dict, a: str, b: str, z: float = 1.96) -> dict:
     return out
 
 
+def _meaning(d: dict, a: str, b: str) -> str:
+    """판정을 a, b 이름으로 풀어 쓴다 ("더 나쁨"이 어느 쪽 이야기인지 헷갈리지 않게)."""
+    if d["verdict"] == "차이 있음 (높음)":
+        return f"{a} 쪽이 {b}보다 높음 ({d['diff'] * 100:+.1f}%p)"
+    if d["verdict"] == "더 나쁨":
+        return f"{a} 쪽이 {b}보다 낮음 ({d['diff'] * 100:+.1f}%p)"
+    return f"{a}와 {b}를 구분할 수 없음"
+
+
 def paired_report(doc: dict) -> dict:
     """짝지은 재평가 결과로 1주차 기준 두 비교를 다시 판정한다."""
+    gain = paired_diff(doc, "curated_150", "random_150")
+    drop = paired_diff(doc, "train", "curated_150")
     return {"label": f"짝지은 비교 (같은 평가 위치, 시드 {len({r['seed'] for r in doc['runs'].values()})}개, {doc.get('epoch')} epoch)",
             "success": {k: f"{r['success']}/{len(r['outcomes'])}" for k, r in sorted(doc["runs"].items())},
-            "gain_vs_random": {**paired_diff(doc, "curated_150", "random_150"), "question": "선별 - 무작위 (1주차: +5%p 이상)"},
-            "drop_vs_full": {**paired_diff(doc, "train", "curated_150"), "question": "전체 - 선별 (1주차: 하락 5%p 이내)"}}
+            "gain_vs_random": {**gain, "meaning": _meaning(gain, "선별", "무작위"), "question": "선별 - 무작위 (1주차: +5%p 이상)"},
+            "drop_vs_full": {**drop, "meaning": _meaning(drop, "전체", "선별"), "question": "전체 - 선별 (1주차: 하락 5%p 이내)"}}
 
 
 def main() -> None:
