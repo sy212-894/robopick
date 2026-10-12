@@ -150,8 +150,8 @@ function Stats({ ov, res }: { ov: Overview; res: Results }) {
         <div className="grid gap-0" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
           <div className="border-r border-line py-2 pr-8">
             <div className="text-[44px] font-semibold tracking-tight text-accent">{pp(gain?.diff)}</div>
-            <div className="mt-2 text-base font-medium">같은 150개 무작위보다 높은 성공률</div>
-            <div className="mt-1.5 text-[13px] text-sub">선별 {pct(rate('curated_150'))} vs 무작위 {pct(rate('random_150'))} · 시드 {gain?.n_seeds ?? '-'}개를 짝지은 비교</div>
+            <div className="mt-2 text-base font-medium">같은 150개 무작위 대비 평균 차이</div>
+            <div className="mt-1.5 text-[13px] text-sub">선별 {pct(rate('curated_150'))} vs 무작위 {pct(rate('random_150'))} · 시드 {gain?.n_seeds ?? '-'}개를 짝지은 비교 · 판정 {gain?.verdict ?? '-'}</div>
             <div role="img" aria-label="숙련도 구성" className="mt-[22px] flex flex-col gap-2">
               <Bar2 label="선별" parts={comp('curated_150')} />
               <Bar2 label="무작위" parts={comp('random_150')} />
@@ -162,7 +162,7 @@ function Stats({ ov, res }: { ov: Overview; res: Results }) {
           </div>
           <div className="border-r border-line px-8 py-2">
             <div className="text-[44px] font-semibold tracking-tight">{pct(ov.selected.n_demos / ov.train.n_demos)}</div>
-            <div className="mt-2 text-base font-medium">선별 데이터로 전체 데이터 이상의 성능</div>
+            <div className="mt-2 text-base font-medium">전체 데이터 대비 성능 하락 없음</div>
             <div className="mt-1.5 text-[13px] text-sub">{ov.selected.n_demos} / {ov.train.n_demos}개 · 선별 {pct(rate('curated_150'))} vs 전체 {pct(rate('train'))}</div>
             <div role="img" aria-label="시범 수와 프레임 수 비율" className="mt-[22px] flex flex-col gap-2">
               <Ratio label="시범" value={ov.selected.n_demos / ov.train.n_demos} />
