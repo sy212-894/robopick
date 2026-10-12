@@ -66,6 +66,13 @@ def review(run_dir: Path, runs_root: Path) -> dict:
         want = {a["condition"]: a["selected"] for a in sel["allocation"]}
         if per != want:
             issues.append({"check": "stratified", "detail": "조건별 균등 기준선의 칸별 개수가 선택 결과와 다름"})
+    # 선별 도구가 자체 검사에서 낸 문제 중 위에서 다시 검사하지 않는 것(예: 칸 안 위치 쏠림)은 경고로 넘긴다.
+    # 전에는 검수가 이를 보지 않아 선별은 revise인데 승인 화면에는 pass·문제 없음으로 나왔다 (2026-10-12 Square에서 발견).
+    # 위치 쏠림 기준은 칸 하나 기준(무작위 95%)이라 9칸을 함께 보면 무작위로도 한 칸쯤 넘기 쉬워, 승인을 막지 않고 경고로 둔다
+    rechecked = {"budget", "duplicate", "unknown_id", "eval_leak", "allocation", "frames", "frame_match", "stratified", "filter_keys"}
+    for i in (sel.get("checks") or {}).get("issues", []):
+        if i.get("check") not in rechecked:
+            warnings.append({"check": i.get("check"), "detail": f"선별 도구 검사: {i.get('detail')}"})
     copy = (sel.get("hdf5") or {}).get("path")
     if not (copy and Path(copy).exists()) and not list(run_dir.glob("*_curated.hdf5")):
         issues.append({"check": "filter_keys", "detail": "필터 키 복사본 없음"})
