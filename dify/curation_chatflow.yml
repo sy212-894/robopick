@@ -1310,8 +1310,9 @@ workflow:
           n|---|---|---|\\n{rows}\\n| train (전체) | {ts.get('n_demos', '-')} | {ts.get('total_frames',\
           \ 0):,} |\\n\\n\"\n            f\"**검수 결과**: {verdict}\\n{issues_md}\\n\\\
           n\"\n            f\"**학습 계획**: 위 {tp.get('n_sets', 0)}개 묶음을 같은 설정(robomimic\
-          \ BC-RNN 400 epoch, 시드 1)으로 학습하고 MuJoCo 롤아웃으로 성공률 비교\\n\"\n            f\"\
-          예상 시간 약 {tp.get('est_minutes', 0)}분 ({tp.get('note', '')}). 승인하면 노트북 GPU(코랩\
+          \ {str(tp.get('algo', 'bc_rnn')).upper().replace('_', '-')} {tp.get('num_epochs',\
+          \ '?')} epoch, 시드 1)으로 학습하고 MuJoCo 롤아웃으로 성공률 비교\\n\"\n            f\"예상\
+          \ 시간 약 {tp.get('est_minutes', 0)}분 ({tp.get('note', '')}). 승인하면 노트북 GPU(코랩\
           \ 또는 Kaggle)를 사용하며 되돌릴 수 없습니다.\"\n        )\n    return {\"verdict\": verdict,\
           \ \"run_id\": r.get(\"run_id\") or \"\", \"plan_md\": plan_md, \"issues_md\"\
           : issues_md}"

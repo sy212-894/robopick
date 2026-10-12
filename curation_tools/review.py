@@ -90,5 +90,6 @@ def review(run_dir: Path, runs_root: Path) -> dict:
         "sets": sets,
         "train_set": {"n_demos": len(train_ids), "total_frames": int(sum(d["length"] for d in train_ids))},
         "training_plan": {"filter_keys": plan_sets, "n_sets": len(plan_sets),
+                          "algo": cfg["algo"], "num_epochs": cfg["num_epochs"],
                           "est_minutes": len(plan_sets) * minutes, "note": note},
     }
