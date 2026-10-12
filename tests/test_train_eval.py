@@ -112,3 +112,54 @@ def test_early_eval_judgement():
     assert out["judgement"]["early_gain_vs_random"]["verdict"] == "차이 있음 (높음)"  # 70% vs 30%
     assert out["judgement"]["gain_vs_random"]["verdict"] == "구분 불가"              # 90% vs 80%
     assert out["table"][0]["early"]["success_rate"] == 0.7
+
+
+def _seed_doc(fp, runs, mode="seeds", config=None):
+    cfg = dict(config or {"early_eval_epoch": 200})
+    return {"fingerprint": fp, "run_id": "R-s1", "mode": mode, "config": cfg,
+            "runs": {f"{k}|seed{s}": {"set": k, "seed": s, "success": v, "rollouts": 50,
+                                      "by_epoch": {"200": {"success": v // 2, "rollouts": 30}}}
+                     for (k, s), v in runs.items()}}
+
+
+def test_multi_seed_requires_same_direction():
+    plan = {"order": ["curated_150", "random_150"], "sets": {"curated_150": ["demo_1"] * 150, "random_150": ["demo_2"] * 150},
+            "config": {"early_eval_epoch": 200}}
+    base = {"config": {"seed": 1}, "sets": {"curated_150": {"success": 47, "rollouts": 50}, "random_150": {"success": 40, "rollouts": 50}}}
+    same = _seed_doc("x", {("curated_150", 2): 46, ("random_150", 2): 39, ("curated_150", 3): 45, ("random_150", 3): 38})
+    out = T.compare(plan, base, same)
+    g = out["judgement"]["gain_vs_random"]
+    assert g["n_seeds"] == 3 and g["verdict"] == "차이 있음 (높음)" and all(v > 0 for v in g["per_seed_diff"].values())
+    row = out["table"][0]
+    assert row["n_seeds"] == 3 and row["rollouts"] == 150 and row["success"] == 138 and len(row["per_seed"]) == 3
+    assert out["label"].startswith("시드 3개")
+    # 합친 신뢰구간은 0보다 커도, 한 시드에서 무작위가 이기면 구분 불가
+    mixed = _seed_doc("x", {("curated_150", 2): 50, ("random_150", 2): 38, ("curated_150", 3): 40, ("random_150", 3): 42})
+    g2 = T.compare(plan, base, mixed)["judgement"]["gain_vs_random"]
+    assert g2["ci95"][0] > 0 and g2["verdict"] == "구분 불가" and "방향" in g2["note"]
+
+
+def test_save_seed_results_checks(isolated, tmp_path):
+    from curation_tools import analyze as A
+    from curation_tools import select_demos as S
+    runs = isolated / "runs"
+    A.run(DATA, out_root=runs, run_id="R-a")
+    S.run(runs / "R-a" / "analysis.json", out_root=runs, run_id="R-s1")
+    p = T.prepare(runs / "R-s1", runs)
+    plan = json.loads((runs / "R-s1" / "plan" / "plan.json").read_text(encoding="utf-8"))
+    f = tmp_path / "seeds.json"
+    ok = _seed_doc(p["fingerprint"], {("curated_150", 2): 45, ("random_150", 2): 40}, config=dict(plan["config"], seed=2))
+    for bad in (dict(ok, mode="smoke"), dict(ok, fingerprint="0000"),
+                dict(ok, config=dict(plan["config"], num_epochs=2)),
+                _seed_doc(p["fingerprint"], {("curated_150", 1): 45}, config=plan["config"])):
+        f.write_text(json.dumps(bad), encoding="utf-8")
+        with pytest.raises(ValueError):
+            T.save_seed_results(f, runs)
+    f.write_text(json.dumps(ok), encoding="utf-8")
+    T.save_seed_results(f, runs)
+    (runs / "R-s1" / "results").mkdir(exist_ok=True)
+    (runs / "R-s1" / "results" / "results.json").write_text(json.dumps(fake_results(plan, {"curated_150": 0.94, "random_150": 0.8, "train": 0.96})), encoding="utf-8")
+    out = T.collect(runs / "R-s1")
+    row = next(r for r in out["table"] if r["set"] == "curated_150")
+    assert row["n_seeds"] == 2 and row["rollouts"] == 100
+    assert "시드 수가 다름" in out["label"]  # train 등은 시드 1개뿐

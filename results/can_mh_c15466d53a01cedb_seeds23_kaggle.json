@@ -1,0 +1,212 @@
+{
+ "fingerprint": "c15466d53a01cedb",
+ "run_id": "R-20261011-select-main",
+ "mode": "seeds",
+ "platform": "kaggle",
+ "gpu": "Tesla T4",
+ "eval_seed": 12345,
+ "config": {
+  "algo": "bc_rnn",
+  "num_epochs": 400,
+  "steps_per_epoch": 100,
+  "batch_size": 100,
+  "seed": 1,
+  "rollout_n": 50,
+  "rollout_horizon": 400,
+  "early_eval_epoch": 200,
+  "early_eval_n": 30
+ },
+ "runs": {
+  "curated_150|seed2": {
+   "set": "curated_150",
+   "seed": 2,
+   "success": 35,
+   "rollouts": 50,
+   "train_sec": 500,
+   "eval_sec": 630,
+   "by_epoch": {
+    "200": {
+     "success": 18,
+     "rollouts": 30
+    },
+    "400": {
+     "success": 35,
+     "rollouts": 50
+    }
+   },
+   "finished_at": "2026-10-11T17:25:18"
+  },
+  "random_150|seed2": {
+   "set": "random_150",
+   "seed": 2,
+   "success": 34,
+   "rollouts": 50,
+   "train_sec": 509,
+   "eval_sec": 706,
+   "by_epoch": {
+    "200": {
+     "success": 16,
+     "rollouts": 30
+    },
+    "400": {
+     "success": 34,
+     "rollouts": 50
+    }
+   },
+   "finished_at": "2026-10-11T17:45:34"
+  },
+  "train|seed2": {
+   "set": "train",
+   "seed": 2,
+   "success": 28,
+   "rollouts": 50,
+   "train_sec": 510,
+   "eval_sec": 758,
+   "by_epoch": {
+    "200": {
+     "success": 10,
+     "rollouts": 30
+    },
+    "400": {
+     "success": 28,
+     "rollouts": 50
+    }
+   },
+   "finished_at": "2026-10-11T18:06:41"
+  },
+  "curated_150|seed3": {
+   "set": "curated_150",
+   "seed": 3,
+   "success": 28,
+   "rollouts": 50,
+   "train_sec": 510,
+   "eval_sec": 595,
+   "by_epoch": {
+    "200": {
+     "success": 24,
+     "rollouts": 30
+    },
+    "400": {
+     "success": 28,
+     "rollouts": 50
+    }
+   },
+   "finished_at": "2026-10-11T19:36:18"
+  },
+  "random_150|seed3": {
+   "set": "random_150",
+   "seed": 3,
+   "success": 24,
+   "rollouts": 50,
+   "train_sec": 509,
+   "eval_sec": 758,
+   "by_epoch": {
+    "200": {
+     "success": 5,
+     "rollouts": 30
+    },
+    "400": {
+     "success": 24,
+     "rollouts": 50
+    }
+   },
+   "finished_at": "2026-10-11T19:57:24"
+  },
+  "train|seed3": {
+   "set": "train",
+   "seed": 3,
+   "success": 28,
+   "rollouts": 50,
+   "train_sec": 512,
+   "eval_sec": 740,
+   "by_epoch": {
+    "200": {
+     "success": 14,
+     "rollouts": 30
+    },
+    "400": {
+     "success": 28,
+     "rollouts": 50
+    }
+   },
+   "finished_at": "2026-10-11T20:18:16"
+  },
+  "random_frames|seed2": {
+   "set": "random_frames",
+   "seed": 2,
+   "success": 17,
+   "rollouts": 50,
+   "train_sec": 509,
+   "eval_sec": 781,
+   "by_epoch": {
+    "200": {
+     "success": 11,
+     "rollouts": 30
+    },
+    "400": {
+     "success": 17,
+     "rollouts": 50
+    }
+   },
+   "finished_at": "2026-10-11T20:39:46"
+  },
+  "stratified_random_150|seed2": {
+   "set": "stratified_random_150",
+   "seed": 2,
+   "success": 12,
+   "rollouts": 50,
+   "train_sec": 511,
+   "eval_sec": 760,
+   "by_epoch": {
+    "200": {
+     "success": 18,
+     "rollouts": 30
+    },
+    "400": {
+     "success": 12,
+     "rollouts": 50
+    }
+   },
+   "finished_at": "2026-10-11T21:00:56"
+  },
+  "random_frames|seed3": {
+   "set": "random_frames",
+   "seed": 3,
+   "success": 30,
+   "rollouts": 50,
+   "train_sec": 505,
+   "eval_sec": 685,
+   "by_epoch": {
+    "200": {
+     "success": 16,
+     "rollouts": 30
+    },
+    "400": {
+     "success": 30,
+     "rollouts": 50
+    }
+   },
+   "finished_at": "2026-10-11T21:20:46"
+  },
+  "stratified_random_150|seed3": {
+   "set": "stratified_random_150",
+   "seed": 3,
+   "success": 25,
+   "rollouts": 50,
+   "train_sec": 511,
+   "eval_sec": 758,
+   "by_epoch": {
+    "200": {
+     "success": 6,
+     "rollouts": 30
+    },
+    "400": {
+     "success": 25,
+     "rollouts": 50
+    }
+   },
+   "finished_at": "2026-10-11T21:41:55"
+  }
+ },
+ "note": "Kaggle 화면 출력에서 전사. 같은 Kaggle 환경에서 시드 1을 다시 돌린 결과(선별 47/50·22/30, 무작위 40/50·9/30, 전체 48/50·21/30)가 코랩과 완전히 같아 환경 차이 없음"
+}
