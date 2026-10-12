@@ -17,3 +17,6 @@ __pycache__/
 # 영상 · 로그
 *.mp4
 logs/
+
+# 웹 중계 서버 비밀값 (Dify API 키)
+webapi/.env
