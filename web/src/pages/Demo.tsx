@@ -27,13 +27,16 @@ type Review = {
   dataset: string
   budget: number
   verdict: string
-  issues: string[]
-  warnings: string[]
+  issues: Note[]
+  warnings: Note[]
   sets: Record<string, { n_demos: number; total_frames: number }>
   train_set: { n_demos: number; total_frames: number }
   training_plan: { n_sets: number; algo: string; num_epochs: number; est_minutes: number }
 }
 type Form = { token: string; runId: string; content: string }
+// 검수 알림은 {check, detail} 객체로 온다 (예전 형식은 문자열)
+type Note = string | { check?: string; detail?: string }
+const noteText = (n: Note) => (typeof n === 'string' ? n : [n.check, n.detail].filter(Boolean).join(': '))
 
 const PRESETS = [
   { label: 'Can 150개', q: 'can 데이터로 학습할 시범 150개 골라줘' },
@@ -530,7 +533,7 @@ function Approval({ review, form, busy, action, onDecide }: {
           {notes.length > 0 && (
             <ul className="mt-3 mb-0 flex list-disc flex-col gap-1 pl-5 text-[13px] text-warn-ink">
               {notes.map((n, i) => (
-                <li key={i}>{n}</li>
+                <li key={i}>{noteText(n)}</li>
               ))}
             </ul>
           )}
