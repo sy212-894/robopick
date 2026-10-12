@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+/* 디자인 시안(캔버스)의 색·글꼴을 Tailwind 토큰으로 옮겼다. 예: bg-ink, text-sub, border-line, text-accent */
+@theme {
+  --font-sans: "IBM Plex Sans KR", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-ink: #101418;
+  --color-night: #0c1015;
+  --color-body: #3d4652;
+  --color-sub: #5a6472;
+  --color-muted: #8a94a1;
+  --color-line: #e3e6ea;
+  --color-line-soft: #eef0f3;
+  --color-field: #cdd3da;
+  --color-paper: #f5f6f8;
+  --color-accent: #1f5bd6;
+  --color-accent-soft: #e8effd;
+  --color-accent-ink: #1a4bb0;
+  --color-ok: #1e7a4c;
+  --color-ok-soft: #e6f2eb;
+  --color-ok-ink: #18603c;
+  --color-warn-soft: #fbf3e0;
+  --color-warn-ink: #8a5a00;
+  --color-danger: #a3352a;
+}
+
+/* 기본 스타일은 base 층에 둔다. 층 밖에 두면 Tailwind 유틸리티(text-white 등)보다 우선해서 버튼 글자색이 덮인다 */
+@layer base {
+  html {
+    word-break: keep-all;
+  }
+  body {
+    margin: 0;
+    background: #ffffff;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+  a {
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+}
+
+@layer components {
+  /* 짙은 배경의 점 격자 (소개 첫 화면, 결과 머리 띠) */
+  .dot-grid-dark {
+    background-color: var(--color-night);
+    background-image: radial-gradient(#1d2631 1px, transparent 1.2px);
+    background-size: 22px 22px;
+  }
+  /* 밝은 배경의 점 격자 (데모 머리) */
+  .dot-grid {
+    background-image: radial-gradient(#dfe3e8 1px, transparent 1.2px);
+    background-size: 18px 18px;
+  }
+}

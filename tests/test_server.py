@@ -105,9 +105,14 @@ async def test_review_selection(isolated):
         # 같은 결과를 두 번 검수하지 않는다
         _, again = await call(s, "review_selection", {"session_id": "conv-r"})
         assert again["verdict"] == "none"
-        # 파일을 조작해 예산을 넘기면 revise로 잡는다 (에이전트 보고가 아니라 파일 기준)
+        # 선별 도구 자체 검사의 위치 쏠림 문제는 승인을 막지 않고 경고로 넘어온다 (Square에서 사라지던 경고)
         path = isolated / "runs" / sel["run_id"] / "selection.json"
         data = json.loads(path.read_text(encoding="utf-8"))
+        data["checks"] = {"verdict": "revise", "issues": [{"check": "position_shift", "detail": "칸 안 위치 쏠림: ['x2y1']"}]}
+        path.write_text(json.dumps(data), encoding="utf-8")
+        _, warn = await call(s, "review_selection", {"run_id": sel["run_id"], "session_id": "conv-r"})
+        assert warn["verdict"] == "pass" and [w["check"] for w in warn["warnings"]] == ["position_shift"]
+        # 파일을 조작해 예산을 넘기면 revise로 잡는다 (에이전트 보고가 아니라 파일 기준)
         data["selected_ids"] = data["selected_ids"] + data["selected_ids"][:5]
         path.write_text(json.dumps(data), encoding="utf-8")
         _, bad = await call(s, "review_selection", {"run_id": sel["run_id"], "session_id": "conv-r"})
