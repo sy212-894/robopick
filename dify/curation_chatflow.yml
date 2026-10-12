@@ -1488,7 +1488,9 @@ workflow:
           ,\n                 \"effect_allocation\": \"칸별 배분 효과\", \"effect_quality\"\
           : \"품질 점수 효과\",\n                 \"paired_gain_vs_random\": \"짝지은 비교: 선별\
           \ - 무작위\", \"paired_drop_vs_full\": \"짝지은 비교: 전체 - 선별\",\n             \
-          \    \"paired_early_gain_vs_random\": f\"짝지은 비교, {ep} epoch 선별 - 무작위\"}\n\
+          \    \"paired_early_gain_vs_random\": f\"짝지은 비교, {ep} epoch 선별 - 무작위\",\n\
+          \                 \"paired_both_gain_vs_random\": \"짝지은 비교, 두 시점 합침: 선별\
+          \ - 무작위\", \"paired_both_drop_vs_full\": \"짝지은 비교, 두 시점 합침: 전체 - 선별\"}\n\
           \        j = c.get(\"judgement\", {})\n        lines.append(\"\\n**판정**\
           \ (코드가 계산)\")\n        if \"validity\" in j:\n            lines.append(f\"\
           - {j['validity']}\")\n        for k, label in names.items():\n         \
@@ -1696,7 +1698,9 @@ workflow:
           : \"칸별 배분 효과\", \"effect_quality\": \"품질 점수 효과\",\n                 \"paired_gain_vs_random\"\
           : \"짝지은 비교: 선별 - 무작위\", \"paired_drop_vs_full\": \"짝지은 비교: 전체 - 선별\",\n\
           \                 \"paired_early_gain_vs_random\": f\"짝지은 비교, {ep} epoch\
-          \ 선별 - 무작위\"}\n        j = c.get(\"judgement\", {})\n        lines.append(\"\
+          \ 선별 - 무작위\",\n                 \"paired_both_gain_vs_random\": \"짝지은 비교,\
+          \ 두 시점 합침: 선별 - 무작위\", \"paired_both_drop_vs_full\": \"짝지은 비교, 두 시점 합침:\
+          \ 전체 - 선별\"}\n        j = c.get(\"judgement\", {})\n        lines.append(\"\
           \\n**판정** (코드가 계산)\")\n        if \"validity\" in j:\n            lines.append(f\"\
           - {j['validity']}\")\n        for k, label in names.items():\n         \
           \   if k in j:\n                x = j[k]\n                lines.append(f\"\

@@ -213,7 +213,11 @@ def compare(plan: dict, results: dict, seeds: dict | None = None) -> dict:
     final = plan["config"].get("num_epochs")
     for key, a, b, e, q in (("paired_gain_vs_random", cur, rnd, final, f"짝지은 비교: {cur} - {rnd}"),
                             ("paired_drop_vs_full", "train", cur, final, f"짝지은 비교: 전체 - {cur}"),
-                            ("paired_early_gain_vs_random", cur, rnd, ep, f"짝지은 비교, {ep} epoch 시점(학습 속도): {cur} - {rnd}")):
+                            ("paired_early_gain_vs_random", cur, rnd, ep, f"짝지은 비교, {ep} epoch 시점(학습 속도): {cur} - {rnd}"),
+                            # 6-5: Square에서 시점마다 성공률이 크게 흔들려(전체 47%→14%) 두 시점을 합친 비교를 보조로 더한다.
+                            # 시드 1 결과를 본 뒤 추가한 판정이라 주 판정(최종 epoch)은 바꾸지 않는다
+                            ("paired_both_gain_vs_random", cur, rnd, (ep, final) if ep and final else None, f"짝지은 비교, {ep}·{final} epoch 합침: {cur} - {rnd}"),
+                            ("paired_both_drop_vs_full", "train", cur, (ep, final) if ep and final else None, f"짝지은 비교, {ep}·{final} epoch 합침: 전체 - {cur}")):
         if a and b and e and _has_outcomes(doc, a, e) and _has_outcomes(doc, b, e):
             judge[key] = {**paired_diff(doc, a, b, epoch=e), "question": q}
     n = sorted({len(v) for v in runs.values()})
@@ -315,8 +319,12 @@ def store_results(results_path: Path) -> Path:
     return dst
 
 
-def _outcomes(r: dict, epoch: int | None = None) -> list[int] | None:
-    """한 실행의 시범별 성공(1)/실패(0). epoch를 주면 그 시점 평가, 없으면 run의 outcomes(짝 재평가 파일) 또는 마지막 epoch."""
+def _outcomes(r: dict, epoch: int | tuple | None = None) -> list[int] | None:
+    """한 실행의 시범별 성공(1)/실패(0). epoch를 주면 그 시점 평가, 없으면 run의 outcomes(짝 재평가 파일) 또는 마지막 epoch.
+    epoch가 여러 개(tuple)면 시점별 결과를 이어 붙인다 (Square처럼 시점마다 성공률이 크게 흔들릴 때 한 시점의 운을 줄인다)."""
+    if isinstance(epoch, tuple):
+        parts = [_outcomes(r, e) for e in epoch]
+        return None if any(p is None for p in parts) else [x for p in parts for x in p]
     if epoch is None and "outcomes" in r:
         return r["outcomes"]
     by = r.get("by_epoch") or {}
@@ -325,12 +333,12 @@ def _outcomes(r: dict, epoch: int | None = None) -> list[int] | None:
     return (by.get(str(epoch)) or {}).get("outcomes")
 
 
-def _has_outcomes(doc: dict, name: str, epoch: int | None = None) -> bool:
+def _has_outcomes(doc: dict, name: str, epoch: int | tuple | None = None) -> bool:
     rs = [r for r in doc["runs"].values() if r["set"] == name]
     return bool(rs) and all(_outcomes(r, epoch) is not None for r in rs)
 
 
-def paired_diff(doc: dict, a: str, b: str, z: float = 1.96, epoch: int | None = None) -> dict:
+def paired_diff(doc: dict, a: str, b: str, z: float = 1.96, epoch: int | tuple | None = None) -> dict:
     """같은 평가 위치끼리 짝지은 a - b 비교 (results_paired.json).
 
     평가 시드가 고정이라 i번째 시범은 모든 묶음·시드에서 같은 캔 초기 위치다. 같은 시드의 같은 위치끼리

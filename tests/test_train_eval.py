@@ -242,6 +242,10 @@ def test_square_format_compare_paired():
     assert j["paired_gain_vs_random"]["n_pairs"] == 150 and j["paired_gain_vs_random"]["verdict"] == "차이 있음 (높음)"
     assert j["paired_early_gain_vs_random"]["diff"] == round(10 / 30, 4) and "400 epoch" in j["paired_early_gain_vs_random"]["question"]
     assert j["paired_drop_vs_full"]["diff"] == 0 and j["paired_drop_vs_full"]["verdict"] == "구분 불가"
+    # 400·600 epoch 합침: 시드마다 30 + 50 = 80쌍, 선별 40/80 vs 무작위 20/80
+    both = j["paired_both_gain_vs_random"]
+    assert both["n_pairs"] == 240 and both["diff"] == 0.25 and "400·600" in both["question"]
+    assert j["paired_both_drop_vs_full"]["diff"] == round(-10 / 80, 4)
 
 
 def test_square_pilot_file_has_no_paired_for_missing_sets():
