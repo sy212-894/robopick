@@ -1,0 +1,13 @@
+{
+ "purpose": "환경 차이 확인: 코랩에서 돌린 시드 1과 같은 계획·시드를 Kaggle에서 다시 돌림",
+ "fingerprint": "c15466d53a01cedb",
+ "platform": "kaggle",
+ "gpu": "Tesla T4",
+ "eval_seed": 12345,
+ "runs": {
+  "curated_150|seed1": {"success": 47, "rollouts": 50, "by_epoch": {"200": {"success": 22, "rollouts": 30}}, "colab": {"success": 47, "early": 22}},
+  "random_150|seed1": {"success": 40, "rollouts": 50, "by_epoch": {"200": {"success": 9, "rollouts": 30}}, "colab": {"success": 40, "early": 9}},
+  "train|seed1": {"success": 48, "rollouts": 50, "by_epoch": {"200": {"success": 21, "rollouts": 30}}, "colab": {"success": 48, "early": 21}}
+ },
+ "conclusion": "세 묶음 모두 코랩과 성공 횟수가 완전히 같다. 시드가 같으면 플랫폼과 무관하게 재현되므로, 시드 2·3의 차이는 학습 시드에 따른 실제 흔들림이다"
+}
