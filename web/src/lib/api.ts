@@ -52,6 +52,8 @@ export type Collect = {
   detail?: string
   sets?: Record<string, { n_demos: number; total_frames: number }>
   plan_config?: { num_epochs: number; early_eval_epoch?: number; early_eval_n?: number; rollout_n?: number }
+  // 같은 위치끼리 짝지은 재평가가 있으면 (주 판정). judgement 맨 앞의 paired_* 키와 함께 온다
+  paired?: { label: string; rates: Record<string, { success: number; rollouts: number; seeds: number }> }
 }
 
 export type Paired = {

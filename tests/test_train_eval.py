@@ -269,3 +269,39 @@ def test_paired_report_five_sets():
     assert {"gain_vs_random", "drop_vs_full", "effect_quality", "effect_allocation", "same_frames"} <= set(rep)
     assert rep["gain_vs_random"]["n_pairs"] == 300 and rep["gain_vs_random"]["diff"] == 0.2
     assert rep["same_frames"]["meaning"].startswith("선별 쪽이 프레임 맞춘 무작위보다 높음")
+
+
+def test_save_paired_makes_primary_judgement(isolated, tmp_path):
+    # 짝지은 재평가를 저장하면 collect가 그것을 주 판정으로 맨 앞에 낸다. 같은 계획의 새 실행 폴더(데모)에서도 저장소에서 찾는다
+    from curation_tools import analyze as A
+    from curation_tools import select_demos as S
+    runs = isolated / "runs"
+    A.run(DATA, out_root=runs, run_id="R-a")
+    S.run(runs / "R-a" / "analysis.json", out_root=runs, run_id="R-s1")
+    p = T.prepare(runs / "R-s1", runs)
+    plan = json.loads((runs / "R-s1" / "plan" / "plan.json").read_text(encoding="utf-8"))
+    (runs / "R-s1" / "results").mkdir(exist_ok=True)
+    res = runs / "R-s1" / "results" / "results.json"
+    res.write_text(json.dumps(fake_results(plan, {k: 0.7 for k in plan["sets"]})), encoding="utf-8")
+    T.store_results(res)
+    hi, lo = [1] * 80 + [0] * 20, [1] * 60 + [0] * 40
+    ok = {**_paired_doc({(k, s): (hi if k.startswith("curated") else lo) for k in plan["sets"] for s in (1, 2, 3)}),
+          "fingerprint": p["fingerprint"], "run_id": "R-s1", "mode": "paired", "policy_seed": "EVAL_SEED+i"}
+    f = tmp_path / "paired.json"
+    short = json.loads(json.dumps(ok))
+    short["runs"]["train|seed1"]["outcomes"] = lo[:50]
+    for bad in (dict(ok, fingerprint="0000"), dict(ok, mode="seeds"), dict(ok, policy_seed=None), short):
+        f.write_text(json.dumps(bad), encoding="utf-8")
+        with pytest.raises(ValueError):
+            T.save_paired(f, runs)
+    f.write_text(json.dumps(ok), encoding="utf-8")
+    T.save_paired(f, runs)
+    assert (isolated / "store" / f"{p['fingerprint']}_paired.json").exists()
+    # 같은 선별로 새로 만든 실행 폴더 (데모에서 승인할 때마다 생긴다)
+    S.run(runs / "R-a" / "analysis.json", out_root=runs, run_id="R-s2")
+    T.prepare(runs / "R-s2", runs)
+    out = T.collect(runs / "R-s2")
+    first = next(iter(out["judgement"]))
+    assert first == "paired_gain_vs_random" and out["judgement"][first]["primary"]
+    assert out["judgement"][first]["n_pairs"] == 300 and out["judgement"][first]["diff"] == 0.2
+    assert out["paired"]["rates"]["train"] == {"success": 180, "rollouts": 300, "seeds": 3}

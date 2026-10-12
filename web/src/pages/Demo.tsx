@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Markdown from '../components/Markdown'
-import { getDoc, type Collect } from '../lib/api'
-import { pct, num, SET_NAMES } from '../lib/fmt'
+import { getDoc, type Collect, type Judge } from '../lib/api'
+import { pct, pp, signed, num, SET_NAMES } from '../lib/fmt'
 import { streamSSE, type DifyEvent } from '../lib/sse'
 
 // 데모: 요청 → Dify 실행(실시간) → 승인 카드 → 승인/거부 → 보고.
@@ -571,8 +571,16 @@ function Approval({ review, form, busy, action, onDecide }: {
 // ---------- 보고: 최종 답변 + 결과 조회 도구의 성공률 막대 (판정은 답변 안의 표에 있다) ----------
 
 function Report({ answer, collect, approved, onReset }: { answer: string; collect: Collect | null; approved: boolean; onReset: () => void }) {
-  const table = collect?.table?.filter((r) => r.success_rate != null) ?? []
+  // 짝지은 재평가(주 판정)가 있으면 그 성공률을, 없으면 결과 조회 도구의 합산 성공률을 막대로 그린다
+  const pr = collect?.paired?.rates
+  const table = pr
+    ? (collect?.table ?? []).filter((r) => pr[r.set]).map((r) => ({ set: r.set, success_rate: pr[r.set].success / pr[r.set].rollouts }))
+    : (collect?.table?.filter((r) => r.success_rate != null) ?? [])
   const max = Math.max(0.01, ...table.map((r) => r.success_rate ?? 0))
+  const j = collect?.judgement ?? {}
+  const prim = (['paired_gain_vs_random', 'paired_drop_vs_full'] as const)
+    .map((k) => [k, j[k]] as const)
+    .filter((x): x is readonly [typeof x[0], Judge] => typeof x[1] === 'object' && !!x[1])
   return (
     <section className={`${card} p-6`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -592,7 +600,9 @@ function Report({ answer, collect, approved, onReset }: { answer: string; collec
       {table.length > 0 && (
         <>
           <div className="mt-6 text-[13px] text-sub">
-            결과 조회 도구가 돌려준 최종 성공률{collect?.status === 'partial' ? ' · 일부 묶음만 끝남' : ''} · 시드별 시험을 합친 값
+            {collect?.paired
+              ? `최종 성공률 · ${collect.paired.label}`
+              : `결과 조회 도구가 돌려준 최종 성공률${collect?.status === 'partial' ? ' · 일부 묶음만 끝남' : ''} · 시드별 시험을 합친 값`}
           </div>
           <div className="mt-3 flex flex-col gap-2.5">
             {table.map((r) => (
@@ -608,8 +618,25 @@ function Report({ answer, collect, approved, onReset }: { answer: string; collec
               </div>
             ))}
           </div>
+          {prim.length > 0 && (
+            <ul className="mt-5 mb-0 flex list-none flex-col gap-2 p-0 text-sm">
+              {prim.map(([k, x]) => (
+                <li key={k} className="flex flex-wrap items-baseline gap-2.5">
+                  <span className={`rounded px-2 py-0.5 text-xs ${x.verdict.startsWith('차이 있음') ? 'bg-ok-soft text-ok-ink' : 'bg-line-soft text-body'}`}>
+                    {x.verdict}
+                  </span>
+                  <span>
+                    주 판정 · {k === 'paired_gain_vs_random' ? '선별 − 무작위' : '전체 − 선별'} {pp(x.diff, 1)}
+                  </span>
+                  <span className="text-sub">
+                    (95% 신뢰구간 {signed(x.ci95[0], 1)} ~ {signed(x.ci95[1], 1)}%p{x.note ? `, ${x.note}` : ''})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
           <p className="mt-5 text-xs text-sub">
-            수치와 판정은 도구가 계산했습니다. 같은 시험 위치끼리 짝지은 비교(주 판정)는 <Link to="/results">실험 결과</Link>에 있습니다.
+            수치와 판정은 도구가 계산했습니다. 묶음별 자세한 비교는 <Link to="/results">실험 결과</Link>에 있습니다.
           </p>
         </>
       )}

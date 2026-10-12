@@ -265,6 +265,20 @@ def collect(run_dir: Path) -> dict:
            "config": results.get("config", plan["config"]), **compare(plan, results, seeds)}
     if seeds:
         out["seeds_trained_at"] = max((r.get("finished_at", "") for r in seeds["runs"].values()), default=None)
+    # 같은 위치끼리 짝지은 재평가(results_paired.json)가 있으면 그것이 주 판정이다 (5-10, 결과 보기 전에 정함).
+    # 판정 맨 앞에 paired_* 로 넣어 Dify 보고와 웹 데모가 결과 페이지와 같은 판정을 쓰게 한다
+    pdoc = _load_paired(run_dir, plan)
+    if pdoc:
+        rep = paired_report(pdoc)
+        prim = {f"paired_{k}": {**rep[k], "primary": True} for k in PAIRED_KEYS if k in rep}
+        out["judgement"] = {**prim, **{k: v for k, v in out["judgement"].items() if k not in prim}}
+        rates: dict[str, dict] = {}
+        for r in pdoc["runs"].values():
+            a = rates.setdefault(r["set"], {"success": 0, "rollouts": 0, "seeds": 0})
+            a["success"] += sum(r["outcomes"])
+            a["rollouts"] += len(r["outcomes"])
+            a["seeds"] += 1
+        out["paired"] = {"label": rep["label"], "rates": rates}
     if reused:
         out["note"] = "같은 선별 결과·설정으로 미리 실행한 학습 결과를 불러왔다"
     return out
@@ -307,6 +321,45 @@ def save_seed_results(seeds_path: Path, runs_root: Path) -> Path:
     dst.write_text(body, encoding="utf-8")
     RESULTS_STORE.mkdir(parents=True, exist_ok=True)
     (RESULTS_STORE / f"{plan['fingerprint']}_seeds.json").write_text(body, encoding="utf-8")
+    return dst
+
+
+PAIRED_KEYS = ("gain_vs_random", "drop_vs_full", "effect_quality", "effect_allocation", "same_frames")
+
+
+def _load_paired(run_dir: Path, plan: dict) -> dict | None:
+    """실행 폴더 또는 지문 저장소의 짝지은 재평가 결과. 데모처럼 새 실행 폴더에서도 같은 계획이면 저장소에서 찾는다."""
+    for f in (run_dir / "results" / "results_paired.json", RESULTS_STORE / f"{plan['fingerprint']}_paired.json"):
+        if f.exists():
+            doc = json.loads(f.read_text(encoding="utf-8-sig"))
+            if doc.get("fingerprint") != plan["fingerprint"]:
+                raise ValueError("짝지은 재평가 결과의 지문이 학습 계획과 다르다")
+            return doc
+    return None
+
+
+def save_paired(paired_path: Path, runs_root: Path) -> Path:
+    """Kaggle 짝지은 재평가 결과(results_paired.json)를 실행 폴더와 지문 저장소에 저장한다."""
+    doc = json.loads(Path(paired_path).read_text(encoding="utf-8-sig"))
+    run_dir = runs_root / doc["run_id"]
+    plan = json.loads((run_dir / "plan" / "plan.json").read_text(encoding="utf-8"))
+    if doc.get("mode") != "paired":
+        raise ValueError("짝지은 재평가 결과가 아니다 (mode가 paired가 아님)")
+    if doc.get("fingerprint") != plan["fingerprint"]:
+        raise ValueError("짝지은 재평가 결과의 지문이 학습 계획과 다르다")
+    if doc.get("policy_seed") != "EVAL_SEED+i":
+        raise ValueError("행동 난수를 고정하지 않은 재평가는 짝지은 비교에 쓰지 않는다")
+    bad = [k for k, r in doc["runs"].items() if r["set"] not in plan["sets"]]
+    if bad:
+        raise ValueError(f"계획에 없는 묶음: {bad}")
+    if len({len(r["outcomes"]) for r in doc["runs"].values()}) != 1:
+        raise ValueError("실행마다 시험 수가 다르다 (재평가가 끝나지 않은 파일)")
+    body = json.dumps(doc, ensure_ascii=False, indent=1)
+    (run_dir / "results").mkdir(exist_ok=True)
+    dst = run_dir / "results" / "results_paired.json"
+    dst.write_text(body, encoding="utf-8")
+    RESULTS_STORE.mkdir(parents=True, exist_ok=True)
+    (RESULTS_STORE / f"{plan['fingerprint']}_paired.json").write_text(body, encoding="utf-8")
     return dst
 
 
@@ -390,14 +443,18 @@ def paired_report(doc: dict) -> dict:
     out = {"label": f"짝지은 비교 (같은 평가 위치 {'/'.join(map(str, n))}개, 시드 {len({r['seed'] for r in doc['runs'].values()})}개, {doc.get('epoch')} epoch)",
            "success": {k: f"{r['success']}/{len(r['outcomes'])}" for k, r in sorted(doc["runs"].items())}}
     present = {r["set"] for r in doc["runs"].values()}
+    # 예산마다 묶음 이름이 다르다 (curated_150 / curated_135). 접두어로 찾는다
+    cur = next((s for s in sorted(present) if s.startswith("curated")), None)
+    rnd = next((s for s in sorted(present) if s.startswith("random_") and s != "random_frames"), None)
+    strat = next((s for s in sorted(present) if s.startswith("stratified")), None)
     # (키, a, b, a 이름, b 이름, 질문). 묶음이 결과에 있을 때만 판정한다 (2026-10-12: 조건별 균등·프레임 맞춘 무작위 추가)
     for key, a, b, na, nb, q in (
-            ("gain_vs_random", "curated_150", "random_150", "선별", "무작위", "선별 - 무작위 (1주차: +5%p 이상)"),
-            ("drop_vs_full", "train", "curated_150", "전체", "선별", "전체 - 선별 (1주차: 하락 5%p 이내)"),
-            ("effect_quality", "curated_150", "stratified_random_150", "선별", "조건별 균등", "품질 점수 효과 (선별 - 조건별 균등)"),
-            ("effect_allocation", "stratified_random_150", "random_150", "조건별 균등", "무작위", "칸별 배분 효과 (조건별 균등 - 무작위)"),
-            ("same_frames", "curated_150", "random_frames", "선별", "프레임 맞춘 무작위", "같은 프레임 수에서 (선별 - 프레임 맞춘 무작위)")):
-        if a in present and b in present:
+            ("gain_vs_random", cur, rnd, "선별", "무작위", "선별 - 무작위 (1주차: +5%p 이상)"),
+            ("drop_vs_full", "train", cur, "전체", "선별", "전체 - 선별 (1주차: 하락 5%p 이내)"),
+            ("effect_quality", cur, strat, "선별", "조건별 균등", "품질 점수 효과 (선별 - 조건별 균등)"),
+            ("effect_allocation", strat, rnd, "조건별 균등", "무작위", "칸별 배분 효과 (조건별 균등 - 무작위)"),
+            ("same_frames", cur, "random_frames", "선별", "프레임 맞춘 무작위", "같은 프레임 수에서 (선별 - 프레임 맞춘 무작위)")):
+        if a and b and a in present and b in present:
             d = paired_diff(doc, a, b)
             out[key] = {**d, "meaning": _meaning(d, na, nb), "question": q}
     return out
@@ -409,14 +466,18 @@ def main() -> None:
     p.add_argument("--save", type=Path, help="코랩 RESULTS_JSON을 저장한 파일 (시드 1)")
     p.add_argument("--save-seeds", type=Path, help="Kaggle 추가 시드 결과 results_seeds.json")
     p.add_argument("--paired", type=Path, help="짝지은 재평가 결과 results_paired.json (판정만 출력)")
+    p.add_argument("--save-paired", type=Path, help="짝지은 재평가 결과를 실행 폴더와 지문 저장소에 저장 (주 판정)")
     p.add_argument("--runs-root", type=Path, default=Path("C:/curation-data/runs"))
     a = p.parse_args()
     if a.paired:
-        print(json.dumps(paired_report(json.loads(a.paired.read_text(encoding="utf-8"))), ensure_ascii=False, indent=1))
+        print(json.dumps(paired_report(json.loads(a.paired.read_text(encoding="utf-8-sig"))), ensure_ascii=False, indent=1))
         return
-    if not (a.save or a.save_seeds):
-        p.error("--save, --save-seeds, --paired 중 하나는 필요하다")
-    dst = save_results(a.save, a.runs_root) if a.save else save_seed_results(a.save_seeds, a.runs_root)
+    if not (a.save or a.save_seeds or a.save_paired):
+        p.error("--save, --save-seeds, --save-paired, --paired 중 하나는 필요하다")
+    if a.save_paired:
+        dst = save_paired(a.save_paired, a.runs_root)
+    else:
+        dst = save_results(a.save, a.runs_root) if a.save else save_seed_results(a.save_seeds, a.runs_root)
     out = collect(dst.parent.parent)
     print(json.dumps({k: out[k] for k in ("status", "label", "table", "judgement")}, ensure_ascii=False, indent=1))
 
