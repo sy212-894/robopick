@@ -115,7 +115,7 @@ function CanTab({ can }: { can: R['can'] }) {
   const pick = (k: 'effect_quality' | 'same_frames' | 'effect_allocation') => p?.[k] ?? J(k)
   const rows: Row[] = [
     gain && { name: '선별 − 무작위', kind: `주 판정 · ${p ? '짝지은 비교' : '비교'} · 1주차 목표 +5%p`, j: gain },
-    drop && { name: '전체 − 선별', kind: `주 판정 · ${p ? '짝지은 비교' : '비교'} · 1주차 목표 하락 5%p 이내`, j: drop, negLabel: '선별이 높음' },
+    drop && { name: '전체 − 선별', kind: `주 판정 · ${p ? '짝지은 비교' : '비교'} · 1주차 목표 하락 5%p 이내${drop.confirmed ? ' (충족)' : ''}`, j: drop, negLabel: '선별이 높음' },
     early && { name: `${can.config?.early_eval_epoch} epoch 선별 − 무작위`, kind: '학습 속도', j: early },
     pick('effect_quality') && { name: '선별 − 조건별 균등', kind: '품질 점수 효과', j: pick('effect_quality')! },
     pick('same_frames') && { name: '선별 − 프레임 맞춘 무작위', kind: '같은 프레임 수', j: pick('same_frames')! },
@@ -125,13 +125,18 @@ function CanTab({ can }: { can: R['can'] }) {
     <section className="pt-8">
       <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
         {gain && <Kpi accent label="주 판정 · 선별 − 무작위" value={pp(gain.diff)} sub={`신뢰구간 ${ciText(gain)} · ${gain.verdict.startsWith('차이 있음') ? '차이 있음' : gain.verdict}`} />}
-        {drop && <Kpi label="주 판정 · 전체 − 선별" value={pp(drop.diff)} sub={drop.diff < 0 ? '선별이 더 높음 · 하락 없음' : drop.verdict} />}
+        {drop && <Kpi label="주 판정 · 전체 − 선별" value={pp(drop.diff)} sub={drop.confirmed ? `1주차 기준 충족 · 하락 5%p 이내 (신뢰구간 끝 ${signed(drop.ci95[1], 1)}%p)` : drop.diff < 0 ? '선별이 더 높음 · 하락 없음' : drop.verdict} />}
         {early && <Kpi label={`학습 속도 · ${can.config?.early_eval_epoch} epoch`} value={pp(early.diff)} sub={`선별 ${pct(cur?.early?.success_rate)} vs 무작위 ${pct(rnd?.early?.success_rate)}`} />}
       </div>
       <div className="mt-4 rounded-md bg-warn-soft px-3.5 py-2.5 text-[13px] text-warn-ink">시험 {nTest}개 기준</div>
-      {can.table && (
-        <Bars rows={can.table} title="묶음별 최종 성공률"
-          sub={`학습 직후 평가 · ${can.config?.num_epochs} epoch · 시드 합계 · 가는 선은 95% 신뢰구간. 위의 주 판정은 같은 모델을 같은 시험 위치·난수로 다시 평가한 짝지은 비교입니다.`} />
+      {p ? (
+        <Bars
+          rows={Object.entries(p.rates).map(([set, v]) => ({ set, n_demos: can.table?.find((r) => r.set === set)?.n_demos ?? 0, success: v.success, rollouts: v.rollouts, success_rate: v.success / v.rollouts, ci95: wilson(v.success, v.rollouts) }))}
+          title="묶음별 최종 성공률"
+          sub={`짝지은 재평가 · 시험 ${nTest}개 x 시드 ${p.rates.curated_150.seeds}개 · ${can.config?.num_epochs} epoch · 가는 선은 95% 신뢰구간`}
+        />
+      ) : (
+        can.table && <Bars rows={can.table} title="묶음별 최종 성공률" sub={`학습 직후 평가 · ${can.config?.num_epochs} epoch · 시드 합계 · 가는 선은 95% 신뢰구간`} />
       )}
       <JudgeTable rows={rows} />
     </section>
@@ -144,6 +149,20 @@ function BudgetTab({ b }: { b: Collect }) {
   const cur = b.sets?.curated_135
   const rnd = b.sets?.random_135
   const trained = b.status === 'complete' || b.status === 'partial'
+  const J = (k: string) => (isJudge(b.judgement?.[k]) ? (b.judgement![k] as Judge) : undefined)
+  const gain = J('paired_gain_vs_random')
+  const drop = J('paired_drop_vs_full')
+  const early = J('paired_early_gain_vs_random')
+  // 짝지은 비교의 성공률(전체 270 포함)로 막대를 그린다. 없으면 결과 조회 도구의 표
+  const pr = b.paired?.rates
+  const barRows: TableRow[] = pr
+    ? Object.entries(pr).map(([set, v]) => ({ set, n_demos: b.sets?.[set]?.n_demos ?? 270, success: v.success, rollouts: v.rollouts, success_rate: v.success / v.rollouts, ci95: wilson(v.success, v.rollouts) }))
+    : (b.table ?? [])
+  const rows: Row[] = [
+    gain && { name: '선별 135 − 무작위 135', kind: '주 판정 · 짝지은 비교 · 1주차 목표 +5%p 이상', j: gain },
+    drop && { name: '전체 270 − 선별 135', kind: `주 판정 · 짝지은 비교 · 1주차 목표 하락 5%p 이내${drop.confirmed ? ' (충족)' : ''}`, j: drop, negLabel: '선별이 높음' },
+    early && { name: '200 epoch 선별 − 무작위', kind: '보조 · 학습 속도', j: early },
+  ].filter(Boolean) as Row[]
   return (
     <section className="pt-8">
       <div className="rounded-[10px] border border-dashed border-[#b5bdc7] p-8">
@@ -161,9 +180,33 @@ function BudgetTab({ b }: { b: Collect }) {
         </div>
         <p className="mt-5 text-[13px] text-sub">판정 기준(결과 전에 정함): 같은 시험 위치끼리 짝지은 비교, 세 시드 모두 같은 방향일 때만 "차이 있음". {trained ? '' : '결과: 실험이 끝나면 표시'}</p>
       </div>
-      {trained && b.table && <Bars rows={b.table} title="묶음별 최종 성공률" sub="시드 합계 · 가는 선은 95% 신뢰구간" />}
+      {trained && (
+        <>
+          <div className="mt-8 grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+            {gain && <Kpi accent label="주 판정 · 선별 − 무작위" value={pp(gain.diff, 1)} sub={`신뢰구간 ${ciText(gain, 1)} · ${gain.verdict.startsWith('차이 있음') ? '차이 있음' : gain.verdict}`} />}
+            {drop && <Kpi label="주 판정 · 전체 − 선별" value={pp(drop.diff, 1)} sub={drop.confirmed ? `1주차 기준 충족 · 하락 5%p 이내 (신뢰구간 끝 ${signed(drop.ci95[1], 1)}%p)` : `${drop.verdict} · 기준 확정 못 함`} />}
+            {early && <Kpi label="학습 속도 · 200 epoch 선별 − 무작위" value={pp(early.diff, 1)} sub={early.verdict.startsWith('차이 있음') ? '차이 있음' : early.verdict} />}
+          </div>
+          <Bars rows={barRows} title="묶음별 최종 성공률" sub="시드 합계 · 가는 선은 95% 신뢰구간 · 전체 270은 Can 최종 평가의 같은 모델을 같은 시험 위치로 짝지어 비교" />
+          <JudgeTable rows={rows} digits={1} />
+          <p className="mt-5 max-w-[760px] text-[13px] leading-relaxed text-sub">
+            135개 실험의 성공률이 150개 실험보다 전반적으로 높지만, 서로 다른 실험끼리의 비교라 학습 흔들림과 묶음 뽑기 운이 섞여 있습니다. 판정은 같은 실험 안에서 같은 시드·같은 시험 위치끼리만 비교합니다.
+          </p>
+        </>
+      )}
     </section>
   )
+}
+
+// 성공률 95% 신뢰구간 (윌슨 방법, 결과 조회 도구와 같은 식)
+function wilson(k: number, n: number): [number, number] {
+  if (!n) return [0, 0]
+  const z = 1.96
+  const p = k / n
+  const d = 1 + (z * z) / n
+  const c = (p + (z * z) / (2 * n)) / d
+  const h = (z * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n))) / d
+  return [Math.max(0, c - h), Math.min(1, c + h)]
 }
 
 function SquareTab({ sq }: { sq: Collect }) {

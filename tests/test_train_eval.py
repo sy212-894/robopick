@@ -305,3 +305,13 @@ def test_save_paired_makes_primary_judgement(isolated, tmp_path):
     assert first == "paired_gain_vs_random" and out["judgement"][first]["primary"]
     assert out["judgement"][first]["n_pairs"] == 300 and out["judgement"][first]["diff"] == 0.2
     assert out["paired"]["rates"]["train"] == {"success": 180, "rollouts": 300, "seeds": 3}
+
+
+def test_paired_drop_confirmed_uses_ci_upper():
+    # 1주차 "하락 5%p 이내": 짝지은 비교에서도 신뢰구간 위쪽 끝이 5%p 이하일 때만 기준 확정
+    hi, mid = [1] * 85 + [0] * 15, [1] * 75 + [0] * 25
+    rep = T.paired_report(_paired_doc({**{("curated_135", s): hi for s in (1, 2, 3)}, **{("train", s): mid for s in (1, 2, 3)}}))
+    d = rep["drop_vs_full"]
+    assert d["diff"] == -0.1 and d["confirmed"] is True
+    rep2 = T.paired_report(_paired_doc({**{("curated_135", s): mid for s in (1, 2, 3)}, **{("train", s): hi for s in (1, 2, 3)}}))
+    assert rep2["drop_vs_full"]["confirmed"] is False
