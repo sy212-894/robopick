@@ -228,6 +228,11 @@ def write_filtered_copy(src: Path, dst: Path, sets: dict[str, list[str]]) -> Non
             f.create_dataset(key, data=np.array(ids, dtype="S"))
 
 
+def curated_filename(analysis: dict) -> str:
+    """필터 키를 넣은 복사본 파일 이름 (예: can_mh_curated.hdf5, square_mh_curated.hdf5)."""
+    return f"{analysis['dataset'].get('name', 'can_mh')}_curated.hdf5"
+
+
 def run(analysis_path: Path, out_root: Path = DEFAULT_OUT_ROOT, budget: int = DEFAULT_BUDGET,
         seed: int = 0, run_id: str | None = None, write_hdf5: bool = True) -> Path:
     analysis = json.loads(Path(analysis_path).read_text(encoding="utf-8"))
@@ -236,7 +241,7 @@ def run(analysis_path: Path, out_root: Path = DEFAULT_OUT_ROOT, budget: int = DE
     out.mkdir(parents=True, exist_ok=True)
     result = {"run_id": run_id, "created_at": dt.datetime.now().isoformat(timespec="seconds"),
               **select(analysis, budget, seed)}
-    hdf5_path = out / "can_mh_curated.hdf5"
+    hdf5_path = out / curated_filename(analysis)
     t0 = time.perf_counter()
     if write_hdf5:
         write_filtered_copy(Path(analysis["dataset"]["path"]), hdf5_path,

@@ -163,3 +163,23 @@ def test_save_seed_results_checks(isolated, tmp_path):
     row = next(r for r in out["table"] if r["set"] == "curated_150")
     assert row["n_seeds"] == 2 and row["rollouts"] == 100
     assert "시드 수가 다름" in out["label"]  # train 등은 시드 1개뿐
+
+
+SQUARE = Path(os.environ.get("CURATION_SQUARE", "C:/curation-data/raw/square_mh_low_dim.hdf5"))
+
+
+@pytest.mark.skipif(not SQUARE.exists(), reason="Square 데이터 없음")
+def test_square_plan(tmp_path):
+    from curation_tools import analyze as A
+    from curation_tools import select_demos as S
+    import base64, zlib
+    runs = tmp_path / "runs"
+    a = A.run(SQUARE, out_root=runs, run_id="R-sq-a")
+    an = json.loads((a / "analysis.json").read_text(encoding="utf-8"))
+    assert an["dataset"]["name"] == "square_mh" and an["dataset"]["object"] == "너트"
+    s = S.run(a / "analysis.json", out_root=runs, run_id="R-sq-s")
+    assert (s / "square_mh_curated.hdf5").exists()
+    p = T.prepare(s, runs)
+    assert p["dataset"] == "square_mh" and p["n_sets"] == 5
+    body = json.loads(zlib.decompress(base64.b64decode((s / "plan" / "plan_b64.txt").read_text())))
+    assert body["hf_path"] == "v1.5/square/mh/low_dim_v15.hdf5" and body["dataset"] == "square_mh"

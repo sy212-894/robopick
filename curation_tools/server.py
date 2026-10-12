@@ -27,7 +27,8 @@ from curation_tools import select_demos as S
 from curation_tools import train_eval as T
 
 HOST, PORT = "127.0.0.1", 8800
-DATASETS = {"can_mh": Path("C:/curation-data/raw/can_mh_low_dim.hdf5")}
+DATASETS = {"can_mh": Path("C:/curation-data/raw/can_mh_low_dim.hdf5"),
+            "square_mh": Path("C:/curation-data/raw/square_mh_low_dim.hdf5")}
 RUNS_ROOT = A.DEFAULT_OUT_ROOT
 EVENTS_PATH = Path("C:/curation-data/logs/events.jsonl")
 RUN_ID_RE = re.compile(r"^R-[0-9A-Za-z_-]{1,60}$")
@@ -92,9 +93,10 @@ def _traced(tool: str, args: dict, session_id: str | None, fn: Callable[[], dict
 
 @mcp.tool()
 def analyze_data(dataset: str = "can_mh", grid: int = 3, session_id: str | None = None) -> dict[str, Any]:
-    """시범 데이터셋을 분석해 작업 조건(캔 초기 위치 grid x grid 칸)별 시범 수·평균 길이·총 프레임을 요약한다.
+    """시범 데이터셋을 분석해 작업 조건(물체 초기 위치 grid x grid 칸)별 시범 수·평균 길이·총 프레임을 요약한다.
 
-    dataset: 데이터셋 이름. 현재 "can_mh"(robomimic Can, Multi-Human, 300개)만 있다.
+    dataset: 데이터셋 이름. "can_mh"(robomimic Can: 캔 옮기기, Multi-Human 300개) 또는
+             "square_mh"(robomimic Square: 너트를 기둥에 끼우기, Multi-Human 300개, 더 어려움).
     grid: 조건 격자 크기 (2~5, 기본 3).
     session_id: 같은 대화의 호출을 묶는 ID (선택). Dify에서는 대화 ID를 넣는다.
     반환: run_id(다음 도구 select_demos에 넘긴다), 조건별 통계, 품질 신호 이름. 시범 목록과 숙련도 라벨은 포함하지 않는다.

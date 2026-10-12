@@ -66,7 +66,8 @@ def review(run_dir: Path, runs_root: Path) -> dict:
         want = {a["condition"]: a["selected"] for a in sel["allocation"]}
         if per != want:
             issues.append({"check": "stratified", "detail": "조건별 균등 기준선의 칸별 개수가 선택 결과와 다름"})
-    if not (run_dir / "can_mh_curated.hdf5").exists():
+    copy = (sel.get("hdf5") or {}).get("path")
+    if not (copy and Path(copy).exists()) and not list(run_dir.glob("*_curated.hdf5")):
         issues.append({"check": "filter_keys", "detail": "필터 키 복사본 없음"})
 
     sets = {k: {"n_demos": v["n_demos"], "total_frames": v["total_frames"]} for k, v in sel["sets"].items()}

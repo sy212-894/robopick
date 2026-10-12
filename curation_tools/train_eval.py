@@ -14,11 +14,17 @@ import math
 from pathlib import Path
 
 RESULTS_STORE = Path("C:/curation-data/results_store")  # 지문별 학습 결과 (재사용용)
-DATASET = {"name": "can_mh", "hf_repo": "robomimic/robomimic_datasets", "hf_path": "v1.5/can/mh/low_dim_v15.hdf5"}
+HF_REPO = "robomimic/robomimic_datasets"
+DATASETS = {  # 데이터셋 이름 → Hugging Face 경로 (노트북이 이 경로로 내려받는다)
+    "can_mh": {"hf_repo": HF_REPO, "hf_path": "v1.5/can/mh/low_dim_v15.hdf5"},
+    "square_mh": {"hf_repo": HF_REPO, "hf_path": "v1.5/square/mh/low_dim_v15.hdf5"},
+}
 # 파일럿(5-4, 2026-10-11) 결과로 확정: BC는 전체 데이터로도 20% 안팎(바닥), BC-RNN은 400 epoch에서 전체 10/10, 무작위 150 8/10.
 # 200 epoch 시점 차이가 가장 커서(7/10 vs 3/10) 학습 속도 비교용 중간 평가를 둔다. LLM이 바꾸지 못하도록 도구 인자로 받지 않는다
 TRAIN_CONFIG = {"algo": "bc_rnn", "num_epochs": 400, "steps_per_epoch": 100, "batch_size": 100,
                 "seed": 1, "rollout_n": 50, "rollout_horizon": 400, "early_eval_epoch": 200, "early_eval_n": 30}
+# Square는 Can과 같은 설정으로 시작한다 (파일럿에서 성공률이 바닥이면 epoch를 늘리는 식으로 조정, 6-4)
+TRAIN_CONFIGS = {"can_mh": TRAIN_CONFIG, "square_mh": dict(TRAIN_CONFIG)}
 MINUTES_PER_SET = 22  # 본 실험 측정(2026-10-12, T4): BC-RNN 학습 약 10분 + 평가(30회 + 50회) 약 12분
 TARGET_GAIN = 0.05     # 1주차: 같은 개수 무작위보다 +5%p
 MAX_DROP = 0.05        # 1주차: 전체 데이터 대비 하락 5%p 이내
@@ -44,7 +50,8 @@ def compact_plan(plan: dict) -> str:
     """코랩 셀에 붙여 넣을 한 줄 문자열 (zlib + base64). 시범 이름은 번호만 남긴다."""
     import base64
     import zlib
-    body = {"fp": plan["fingerprint"], "run_id": plan["run_id"], "config": plan["config"], "order": plan["order"],
+    body = {"fp": plan["fingerprint"], "run_id": plan["run_id"], "dataset": plan["dataset"]["name"],
+            "hf_path": plan["dataset"]["hf_path"], "config": plan["config"], "order": plan["order"],
             "sets": {k: [int(i.split("_")[1]) for i in v] for k, v in plan["sets"].items()}}
     return base64.b64encode(zlib.compress(json.dumps(body, separators=(",", ":")).encode(), 9)).decode()
 
@@ -56,22 +63,25 @@ def fingerprint(sets: dict[str, list[str]], config: dict, data_sha: str) -> str:
 
 
 def prepare(run_dir: Path, runs_root: Path, config: dict | None = None) -> dict:
-    config = dict(config or TRAIN_CONFIG)
     sel = json.loads((run_dir / "selection.json").read_text(encoding="utf-8"))
     analysis = json.loads((runs_root / sel["analysis_run_id"] / "analysis.json").read_text(encoding="utf-8"))
+    name = analysis["dataset"].get("name", "can_mh")
+    if name not in DATASETS:
+        raise ValueError(f"학습 계획을 만들 수 없는 데이터셋: {name}")
+    config = dict(config or TRAIN_CONFIGS[name])
     sets = {name: s["ids"] for name, s in sel["sets"].items()}
     sets["train"] = sorted((d["id"] for d in analysis["demos"] if d.get("split") == "train"),
                            key=lambda s: int(s.split("_")[1]))
     fp = fingerprint(sets, config, analysis["dataset"]["sha256"])
     plan = {"run_id": sel["run_id"], "analysis_run_id": sel["analysis_run_id"], "fingerprint": fp,
             "created_at": dt.datetime.now().isoformat(timespec="seconds"),
-            "dataset": {**DATASET, "sha256": analysis["dataset"]["sha256"]},
+            "dataset": {"name": name, **DATASETS[name], "sha256": analysis["dataset"]["sha256"]},
             "config": config, "order": _order(list(sets)), "sets": sets}
     out = run_dir / "plan"
     out.mkdir(exist_ok=True)
     (out / "plan.json").write_text(json.dumps(plan, ensure_ascii=False), encoding="utf-8")
     (out / "plan_b64.txt").write_text(compact_plan(plan), encoding="ascii")
-    return {"run_id": sel["run_id"], "fingerprint": fp, "status": "prepared",
+    return {"run_id": sel["run_id"], "dataset": name, "fingerprint": fp, "status": "prepared",
             "n_sets": len(sets), "order": plan["order"],
             "sets": {k: len(v) for k, v in sets.items()},
             "config": config, "est_minutes": len(sets) * MINUTES_PER_SET,
