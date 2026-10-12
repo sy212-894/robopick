@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import PageHead from '../components/PageHead'
 import { getRun, getRuns, postCheck, type RunEvent, type RunRow } from '../lib/api'
 import { useApi } from '../lib/fmt'
@@ -177,7 +178,9 @@ export default function Runs() {
   const { data, error } = useApi(getRuns)
   const [ds, setDs] = useState('all')
   const [ap, setAp] = useState('all')
-  const [sel, setSel] = useState<string | null>(null)
+  // 데모 화면에서 ?sid=대화ID로 넘어오면 그 대화를 바로 연다
+  const [params] = useSearchParams()
+  const [sel, setSel] = useState<string | null>(params.get('sid'))
 
   const all = data?.runs ?? []
   const datasets = useMemo(() => [...new Set(all.map((r) => r.dataset).filter((d): d is string => !!d))].sort(), [all])
