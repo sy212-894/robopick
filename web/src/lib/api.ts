@@ -50,6 +50,8 @@ export type Collect = {
   table?: TableRow[]
   judgement?: Record<string, Judge | string>
   detail?: string
+  sets?: Record<string, { n_demos: number; total_frames: number }>
+  plan_config?: { num_epochs: number; early_eval_epoch?: number; early_eval_n?: number; rollout_n?: number }
 }
 
 export type Paired = {
