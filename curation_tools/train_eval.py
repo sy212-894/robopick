@@ -386,12 +386,21 @@ def _meaning(d: dict, a: str, b: str) -> str:
 
 def paired_report(doc: dict) -> dict:
     """짝지은 재평가 결과로 1주차 기준 두 비교를 다시 판정한다."""
-    gain = paired_diff(doc, "curated_150", "random_150")
-    drop = paired_diff(doc, "train", "curated_150")
-    return {"label": f"짝지은 비교 (같은 평가 위치, 시드 {len({r['seed'] for r in doc['runs'].values()})}개, {doc.get('epoch')} epoch)",
-            "success": {k: f"{r['success']}/{len(r['outcomes'])}" for k, r in sorted(doc["runs"].items())},
-            "gain_vs_random": {**gain, "meaning": _meaning(gain, "선별", "무작위"), "question": "선별 - 무작위 (1주차: +5%p 이상)"},
-            "drop_vs_full": {**drop, "meaning": _meaning(drop, "전체", "선별"), "question": "전체 - 선별 (1주차: 하락 5%p 이내)"}}
+    n = sorted({len(r["outcomes"]) for r in doc["runs"].values()})
+    out = {"label": f"짝지은 비교 (같은 평가 위치 {'/'.join(map(str, n))}개, 시드 {len({r['seed'] for r in doc['runs'].values()})}개, {doc.get('epoch')} epoch)",
+           "success": {k: f"{r['success']}/{len(r['outcomes'])}" for k, r in sorted(doc["runs"].items())}}
+    present = {r["set"] for r in doc["runs"].values()}
+    # (키, a, b, a 이름, b 이름, 질문). 묶음이 결과에 있을 때만 판정한다 (2026-10-12: 조건별 균등·프레임 맞춘 무작위 추가)
+    for key, a, b, na, nb, q in (
+            ("gain_vs_random", "curated_150", "random_150", "선별", "무작위", "선별 - 무작위 (1주차: +5%p 이상)"),
+            ("drop_vs_full", "train", "curated_150", "전체", "선별", "전체 - 선별 (1주차: 하락 5%p 이내)"),
+            ("effect_quality", "curated_150", "stratified_random_150", "선별", "조건별 균등", "품질 점수 효과 (선별 - 조건별 균등)"),
+            ("effect_allocation", "stratified_random_150", "random_150", "조건별 균등", "무작위", "칸별 배분 효과 (조건별 균등 - 무작위)"),
+            ("same_frames", "curated_150", "random_frames", "선별", "프레임 맞춘 무작위", "같은 프레임 수에서 (선별 - 프레임 맞춘 무작위)")):
+        if a in present and b in present:
+            d = paired_diff(doc, a, b)
+            out[key] = {**d, "meaning": _meaning(d, na, nb), "question": q}
+    return out
 
 
 def main() -> None:

@@ -257,3 +257,15 @@ def test_square_pilot_file_has_no_paired_for_missing_sets():
     assert {r["set"]: r["success"] for r in out["table"]} == {"random_150": 5, "train": 5}
     assert not any(k.startswith("paired") for k in out["judgement"])
     assert T._outcomes(doc["runs"]["train|seed1"], 400) == [0, 1, 1, 1, 0, 0, 0, 0, 1, 1]
+
+
+def test_paired_report_five_sets():
+    # 1주차 최종 평가: 묶음 5개 x 시드 3개 x 위치 100개. 판정 5개가 모두 나와야 한다
+    hi, mid, lo = [1] * 80 + [0] * 20, [1] * 70 + [0] * 30, [1] * 60 + [0] * 40
+    sets = {"curated_150": hi, "random_150": lo, "train": mid, "stratified_random_150": mid, "random_frames": lo}
+    doc = _paired_doc({(k, s): o for k, o in sets.items() for s in (1, 2, 3)})
+    rep = T.paired_report(doc)
+    assert "위치 100개" in rep["label"]
+    assert {"gain_vs_random", "drop_vs_full", "effect_quality", "effect_allocation", "same_frames"} <= set(rep)
+    assert rep["gain_vs_random"]["n_pairs"] == 300 and rep["gain_vs_random"]["diff"] == 0.2
+    assert rep["same_frames"]["meaning"].startswith("선별 쪽이 프레임 맞춘 무작위보다 높음")
