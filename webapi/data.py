@@ -115,9 +115,16 @@ def _collect(runs_root: Path, run_id: str) -> dict:
     if not (d / "plan" / "plan.json").exists():
         return {"run_id": run_id, "status": "no_plan"}
     try:
-        return train_eval.collect(d)
+        out = train_eval.collect(d)
     except (ValueError, FileNotFoundError) as e:
         return {"run_id": run_id, "status": "error", "detail": str(e)}
+    # 학습 전이어도 화면에 묶음 구성(시범 수·프레임)과 계획을 보여줄 수 있게 붙인다
+    sel = json.loads((d / "selection.json").read_text(encoding="utf-8"))
+    plan = json.loads((d / "plan" / "plan.json").read_text(encoding="utf-8"))
+    out["sets"] = {k: {"n_demos": v["n_demos"], "total_frames": v["total_frames"]} for k, v in sel["sets"].items()}
+    out["plan_config"] = plan["config"]
+    out.setdefault("fingerprint", plan["fingerprint"])
+    return out
 
 
 def _paired(runs_root: Path, run_id: str) -> dict | None:

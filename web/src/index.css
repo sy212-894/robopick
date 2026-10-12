@@ -52,4 +52,9 @@
     background-image: radial-gradient(#1d2631 1px, transparent 1.2px);
     background-size: 22px 22px;
   }
+  /* 밝은 배경의 점 격자 (데모 머리) */
+  .dot-grid {
+    background-image: radial-gradient(#dfe3e8 1px, transparent 1.2px);
+    background-size: 18px 18px;
+  }
 }
