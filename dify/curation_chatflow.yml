@@ -194,20 +194,6 @@ workflow:
         loop_id: null
         sourceType: tool
         targetType: code
-      id: coll-source-train_md
-      source: coll
-      sourceHandle: source
-      target: train_md
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInIteration: false
-        isInLoop: false
-        iteration_id: null
-        loop_id: null
-        sourceType: tool
-        targetType: code
       id: coll2-source-res_md
       source: coll2
       sourceHandle: source
@@ -436,6 +422,76 @@ workflow:
       source: translate
       sourceHandle: source
       target: retrieval
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: tool
+        targetType: tool
+      id: coll-source-launch
+      source: coll
+      sourceHandle: source
+      target: launch
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: tool
+        targetType: code
+      id: launch-source-train_md
+      source: launch
+      sourceHandle: source
+      target: train_md
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: if-else
+        targetType: tool
+      id: ask_result-progress-prog
+      source: ask_result
+      sourceHandle: progress
+      target: prog
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: tool
+        targetType: code
+      id: prog-source-prog_md
+      source: prog
+      sourceHandle: source
+      target: prog_md
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: code
+        targetType: answer
+      id: prog_md-source-ans_prog
+      source: prog_md
+      sourceHandle: source
+      target: ans_prog
       targetHandle: target
       type: custom
       zIndex: 0
@@ -1046,6 +1102,31 @@ workflow:
       zIndex: 0
     - data:
         cases:
+        - case_id: progress
+          conditions:
+          - comparison_operator: contains
+            id: c_p1
+            value: 학습 진행
+            varType: string
+            variable_selector:
+            - sys
+            - query
+          - comparison_operator: contains
+            id: c_p2
+            value: 진행 상황
+            varType: string
+            variable_selector:
+            - sys
+            - query
+          - comparison_operator: contains
+            id: c_p3
+            value: 진행상황
+            varType: string
+            variable_selector:
+            - sys
+            - query
+          id: progress
+          logical_operator: or
         - case_id: result
           conditions:
           - comparison_operator: contains
@@ -1502,7 +1583,7 @@ workflow:
           - {label}: {x['diff'] * 100:+.0f}%p (95% 신뢰구간 {x['ci95'][0] * 100:+.0f}~{x['ci95'][1]\
           \ * 100:+.0f}%p) → {x['verdict']}{' (' + x['note'] + ')' if x.get('note')\
           \ else ''}\")\n    elif st == \"not_trained\":\n        lines.append(\"\\\
-          n아직 학습 결과가 없습니다. 노트북에서 학습을 돌리고 결과를 저장하면 '학습 결과 보여줘'로 볼 수 있습니다.\")\n    elif\
+          n아직 학습 결과가 없습니다. Kaggle에서 학습 중이면 '학습 진행 상황 알려줘'로 진행을 볼 수 있습니다.\")\n    elif\
           \ st == \"no_target\":\n        lines.append(\"이 대화에는 승인된 학습 계획이 없습니다. 먼저\
           \ 시범을 골라 학습을 승인하면 결과를 볼 수 있습니다.\")\n    else:\n        lines.append(f\"\\\
           n학습 결과를 불러오지 못했습니다: {c.get('detail', st)}\")\n    if st in (\"complete\"\
@@ -1675,52 +1756,62 @@ workflow:
       width: 242
       zIndex: 0
     - data:
-        code: "def main(prep: list, coll: list) -> dict:\n    p = prep[0] if prep\
-          \ else {}\n    c = coll[0] if coll else {}\n    lines = []\n    if p.get(\"\
-          status\") == \"prepared\":\n        cfg = p.get(\"config\", {})\n      \
-          \  lines.append(f\"**학습 계획** 지문 `{p.get('fingerprint')}`, 묶음 {p.get('n_sets')}개,\
-          \ {str(cfg.get('algo', '')).upper()} {cfg.get('num_epochs')} epoch, 예상 약\
-          \ {p.get('est_minutes')}분\")\n    else:\n        lines.append(f\"학습 계획을\
-          \ 만들지 못했습니다: {p.get('detail', p.get('status', '알 수 없음'))}\")\n    st = c.get(\"\
-          status\")\n    if st in (\"complete\", \"partial\"):\n        head = \"\
-          같은 선별 결과와 설정으로 미리 실행한 학습 결과\" if c.get(\"reused\") else \"학습 결과\"\n    \
-          \    lines.append(f\"\\n**{head}** (학습 시각 {c.get('trained_at')}{', 추가 시드\
-          \ ' + str(c.get('seeds_trained_at')) if c.get('seeds_trained_at') else ''})\
-          \ / {c.get('label')}\")\n        ep = (c.get(\"config\") or {}).get(\"early_eval_epoch\"\
-          ) or 200\n        lines.append(f\"\\n| 묶음 | 시범 수 | 시드 수 | 성공률 | 95% 신뢰구간\
-          \ | {ep} epoch |\\n|---|---|---|---|---|---|\")\n        for r in c.get(\"\
-          table\", []):\n            if \"success_rate\" not in r:\n             \
-          \   lines.append(f\"| {r['set']} | {r['n_demos']} | - | 결과 없음 | - | - |\"\
-          )\n                continue\n            e = r.get(\"early\")\n        \
-          \    es = f\"{e['success_rate']:.0%}\" if e else \"-\"\n            lines.append(f\"\
-          | {r['set']} | {r['n_demos']} | {r.get('n_seeds', 1)} | {r['success_rate']:.0%}\
-          \ ({r['success']}/{r['rollouts']}) | {r['ci95'][0]:.0%}~{r['ci95'][1]:.0%}\
-          \ | {es} |\")\n        names = {\"paired_gain_vs_random\": \"주 판정 · 짝지은\
-          \ 비교: 선별 - 무작위 (1주차 기준: +5%p 이상)\", \"paired_drop_vs_full\": \"주 판정 · 짝지은\
-          \ 비교: 전체 - 선별 (1주차 기준: 하락 5%p 이내)\", \"gain_vs_random\": \"보조 · 시험 합산: 선별\
-          \ - 무작위\", \"drop_vs_full\": \"보조 · 시험 합산: 전체 - 선별\",\n                \
-          \ \"early_gain_vs_random\": f\"학습 속도, {ep} epoch 선별 - 무작위\", \"same_frames\"\
-          : \"같은 프레임 수에서 선별 - 무작위\",\n                 \"effect_allocation\": \"칸별\
-          \ 배분 효과\", \"effect_quality\": \"품질 점수 효과\",\n                 \n      \
-          \           \"paired_early_gain_vs_random\": f\"짝지은 비교, {ep} epoch 선별 -\
-          \ 무작위\",\n                 \"paired_both_gain_vs_random\": \"짝지은 비교, 두 시점\
-          \ 합침: 선별 - 무작위\", \"paired_both_drop_vs_full\": \"짝지은 비교, 두 시점 합침: 전체 -\
-          \ 선별\"}\n        j = c.get(\"judgement\", {})\n        lines.append(\"\\\
-          n**판정** (코드가 계산)\")\n        if \"validity\" in j:\n            lines.append(f\"\
+        code: "def launch_text(l: dict) -> str:\n    st = l.get(\"status\")\n    if\
+          \ st == \"launched\":\n        left = (l.get(\"gpu\") or {}).get(\"left\"\
+          )\n        return (f\"**Kaggle GPU에서 학습을 시작했습니다** (실행 {l.get('jobs')}개,\
+          \ 예상 약 {l.get('est_minutes')}분, 남은 GPU {left}시간). \"\n                \"\
+          '학습 진행 상황 알려줘' 또는 웹의 실행 페이지에서 진행을 보고 멈추거나 이어서 할 수 있습니다.\")\n    if st ==\
+          \ \"already_running\":\n        return \"이 계획은 이미 Kaggle에서 학습 중입니다. '학습\
+          \ 진행 상황 알려줘'로 확인할 수 있습니다.\"\n    if st == \"disabled\":\n        return\
+          \ \"학습 계획까지 준비했습니다. Kaggle 자동 학습이 꺼져 있어 학습은 시작하지 않았습니다.\"\n    if st in\
+          \ (\"no_gpu\", \"busy\"):\n        return f\"학습을 시작하지 않았습니다: {l.get('detail')}\"\
+          \n    return f\"Kaggle 학습을 시작하지 못했습니다: {l.get('detail', st)}\"\n\n\ndef\
+          \ main(prep: list, coll: list, launch: list) -> dict:\n    p = prep[0] if\
+          \ prep else {}\n    c = coll[0] if coll else {}\n    l = launch[0] if launch\
+          \ else {}\n    lines = []\n    if p.get(\"status\") == \"prepared\":\n \
+          \       cfg = p.get(\"config\", {})\n        lines.append(f\"**학습 계획** 지문\
+          \ `{p.get('fingerprint')}`, 묶음 {p.get('n_sets')}개, {str(cfg.get('algo',\
+          \ '')).upper()} {cfg.get('num_epochs')} epoch, 예상 약 {p.get('est_minutes')}분\"\
+          )\n    else:\n        lines.append(f\"학습 계획을 만들지 못했습니다: {p.get('detail',\
+          \ p.get('status', '알 수 없음'))}\")\n    st = c.get(\"status\")\n    if st\
+          \ in (\"complete\", \"partial\"):\n        head = \"같은 선별 결과와 설정으로 미리 실행한\
+          \ 학습 결과\" if c.get(\"reused\") else \"학습 결과\"\n        lines.append(f\"\\\
+          n**{head}** (학습 시각 {c.get('trained_at')}{', 추가 시드 ' + str(c.get('seeds_trained_at'))\
+          \ if c.get('seeds_trained_at') else ''}) / {c.get('label')}\")\n       \
+          \ ep = (c.get(\"config\") or {}).get(\"early_eval_epoch\") or 200\n    \
+          \    lines.append(f\"\\n| 묶음 | 시범 수 | 시드 수 | 성공률 | 95% 신뢰구간 | {ep} epoch\
+          \ |\\n|---|---|---|---|---|---|\")\n        for r in c.get(\"table\", []):\n\
+          \            if \"success_rate\" not in r:\n                lines.append(f\"\
+          | {r['set']} | {r['n_demos']} | - | 결과 없음 | - | - |\")\n               \
+          \ continue\n            e = r.get(\"early\")\n            es = f\"{e['success_rate']:.0%}\"\
+          \ if e else \"-\"\n            lines.append(f\"| {r['set']} | {r['n_demos']}\
+          \ | {r.get('n_seeds', 1)} | {r['success_rate']:.0%} ({r['success']}/{r['rollouts']})\
+          \ | {r['ci95'][0]:.0%}~{r['ci95'][1]:.0%} | {es} |\")\n        names = {\"\
+          paired_gain_vs_random\": \"주 판정 · 짝지은 비교: 선별 - 무작위 (1주차 기준: +5%p 이상)\",\
+          \ \"paired_drop_vs_full\": \"주 판정 · 짝지은 비교: 전체 - 선별 (1주차 기준: 하락 5%p 이내)\"\
+          , \"gain_vs_random\": \"보조 · 시험 합산: 선별 - 무작위\", \"drop_vs_full\": \"보조 ·\
+          \ 시험 합산: 전체 - 선별\",\n                 \"early_gain_vs_random\": f\"학습 속도,\
+          \ {ep} epoch 선별 - 무작위\", \"same_frames\": \"같은 프레임 수에서 선별 - 무작위\",\n   \
+          \              \"effect_allocation\": \"칸별 배분 효과\", \"effect_quality\":\
+          \ \"품질 점수 효과\",\n                 \n                 \"paired_early_gain_vs_random\"\
+          : f\"짝지은 비교, {ep} epoch 선별 - 무작위\",\n                 \"paired_both_gain_vs_random\"\
+          : \"짝지은 비교, 두 시점 합침: 선별 - 무작위\", \"paired_both_drop_vs_full\": \"짝지은 비교,\
+          \ 두 시점 합침: 전체 - 선별\"}\n        j = c.get(\"judgement\", {})\n        lines.append(\"\
+          \\n**판정** (코드가 계산)\")\n        if \"validity\" in j:\n            lines.append(f\"\
           - {j['validity']}\")\n        for k, label in names.items():\n         \
           \   if k in j:\n                x = j[k]\n                lines.append(f\"\
           - {label}: {x['diff'] * 100:+.0f}%p (95% 신뢰구간 {x['ci95'][0] * 100:+.0f}~{x['ci95'][1]\
           \ * 100:+.0f}%p) → {x['verdict']}{' (' + x['note'] + ')' if x.get('note')\
           \ else ''}\")\n    elif st == \"not_trained\":\n        lines.append(\"\\\
-          n아직 학습 결과가 없습니다. 노트북에서 학습을 돌리고 결과를 저장하면 '학습 결과 보여줘'로 볼 수 있습니다.\")\n    else:\n\
-          \        lines.append(f\"\\n학습 결과를 불러오지 못했습니다: {c.get('detail', st)}\")\n\
-          \    if st in (\"complete\", \"partial\"):\n        brief = (\"같은 선별 결과와\
-          \ 설정으로 미리 실행한 학습 결과가 있다\" if c.get(\"reused\") else \"학습 결과가 있다\") + f\"\
-          \ (라벨: {c.get('label')}). 수치와 판정은 답변 아래 표에 코드가 붙인다\"\n    elif st == \"\
-          not_trained\":\n        brief = \"학습 계획만 준비했고 학습 결과는 아직 없다. 다음 단계는 노트북(코랩\
-          \ 또는 Kaggle)에서 학습을 실행하는 것\"\n    else:\n        brief = \"학습 결과를 불러오지 못했다\"\
-          \n    return {\"md\": \"\\n\".join(lines), \"status\": str(st), \"brief\"\
-          : brief}"
+          n\" + launch_text(l))\n    else:\n        lines.append(f\"\\n학습 결과를 불러오지\
+          \ 못했습니다: {c.get('detail', st)}\")\n    if st in (\"complete\", \"partial\"\
+          ):\n        brief = (\"같은 선별 결과와 설정으로 미리 실행한 학습 결과가 있다\" if c.get(\"reused\"\
+          ) else \"학습 결과가 있다\") + f\" (라벨: {c.get('label')}). 수치와 판정은 답변 아래 표에 코드가\
+          \ 붙인다\"\n    elif st == \"not_trained\":\n        brief = (\"학습 계획을 Kaggle\
+          \ GPU에서 학습하기 시작했다. 결과는 학습이 끝난 뒤 나온다\" if l.get(\"status\") in (\"launched\"\
+          , \"already_running\") else \"학습 계획만 준비했고 학습은 시작하지 않았다. 이유는 답변 아래에 코드가 붙인다\"\
+          )\n    else:\n        brief = \"학습 결과를 불러오지 못했다\"\n    return {\"md\": \"\
+          \\n\".join(lines), \"status\": str(st), \"brief\": brief}"
         code_language: python3
         outputs:
           brief:
@@ -1744,6 +1835,10 @@ workflow:
           - coll
           - json
           variable: coll
+        - value_selector:
+          - launch
+          - json
+          variable: launch
       height: 51
       id: train_md
       position:
@@ -1809,6 +1904,147 @@ workflow:
       positionAbsolute:
         x: 640
         y: 300
+      selected: false
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        is_team_authorization: true
+        provider_id: curation-tools
+        provider_name: curation-tools
+        provider_type: mcp
+        retry_config:
+          enabled: false
+          max_retries: 2
+          retry_interval: 1000
+        selected: false
+        title: Kaggle 학습 시작 (train_evaluate launch)
+        tool_configurations: {}
+        tool_label: train_evaluate
+        tool_name: train_evaluate
+        tool_node_version: '2'
+        tool_parameters:
+          session_id:
+            type: mixed
+            value: '{{#sys.conversation_id#}}'
+          stage:
+            type: mixed
+            value: launch
+        type: tool
+      height: 83
+      id: launch
+      position:
+        x: 3940
+        y: 440
+      positionAbsolute:
+        x: 3940
+        y: 440
+      selected: false
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        is_team_authorization: true
+        provider_id: curation-tools
+        provider_name: curation-tools
+        provider_type: mcp
+        retry_config:
+          enabled: true
+          max_retries: 2
+          retry_interval: 1000
+        selected: false
+        title: Kaggle 학습 진행 (train_evaluate status)
+        tool_configurations: {}
+        tool_label: train_evaluate
+        tool_name: train_evaluate
+        tool_node_version: '2'
+        tool_parameters:
+          session_id:
+            type: mixed
+            value: '{{#sys.conversation_id#}}'
+          stage:
+            type: mixed
+            value: status
+        type: tool
+      height: 83
+      id: prog
+      position:
+        x: 640
+        y: -160
+      positionAbsolute:
+        x: 640
+        y: -160
+      selected: false
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: "def main(prog: list) -> dict:\n    s = prog[0] if prog else {}\n  \
+          \  st = s.get(\"status\")\n    if st == \"no_target\":\n        return {\"\
+          md\": \"이 대화에는 승인된 학습 계획이 없습니다. 먼저 시범을 골라 학습 계획을 승인해 주세요.\"}\n    if st\
+          \ == \"already_trained\":\n        return {\"md\": \"이 학습 계획은 같은 설정으로 미리\
+          \ 실행한 학습 결과가 있어 다시 학습하지 않았습니다. '학습 결과 보여줘'로 볼 수 있습니다.\"}\n    if st == \"\
+          not_launched\":\n        return {\"md\": \"이 대화의 학습 계획은 아직 Kaggle에 올라가지\
+          \ 않았습니다.\"}\n    if st == \"kaggle_error\":\n        return {\"md\": f\"\
+          Kaggle 상태를 확인하지 못했습니다: {s.get('detail')}\"}\n    names = {\"queued\": \"\
+          시작 대기\", \"running\": \"학습 중\", \"complete\": \"완료 (결과 등록됨)\", \"stopping\"\
+          : \"중단 요청됨\",\n             \"stopped\": \"중단됨\", \"error\": \"오류로 멈춤\"\
+          }\n    lines = [f\"**Kaggle 학습 상태: {names.get(st, st)}**\", \"\",\n    \
+          \         f\"- 끝난 실행: {s.get('done_runs')}/{s.get('total_runs')}\",\n  \
+          \           f\"- 경과: {s.get('elapsed_minutes')}분 / 예상 약 {s.get('est_minutes')}분\"\
+          ]\n    if s.get(\"failure\"):\n        lines.append(f\"- 오류 내용: {s.get('failure')}\"\
+          )\n    if st == \"complete\":\n        lines.append(\"\\n'학습 결과 보여줘'로 성공률과\
+          \ 판정을 볼 수 있습니다.\")\n    elif s.get(\"can_resume\"):\n        lines.append(\"\
+          \\n끝난 실행 결과는 남아 있습니다. 웹의 실행 페이지에서 '이어서 학습'으로 남은 실행부터 다시 할 수 있습니다.\")\n \
+          \   elif s.get(\"can_stop\"):\n        lines.append(\"\\n웹의 실행 페이지에서 학습을\
+          \ 멈출 수 있습니다.\")\n    return {\"md\": \"\\n\".join(lines)}\n"
+        code_language: python3
+        outputs:
+          md:
+            children: null
+            type: string
+        selected: false
+        title: 학습 진행 정리
+        type: code
+        variables:
+        - value_selector:
+          - prog
+          - json
+          variable: prog
+      height: 51
+      id: prog_md
+      position:
+        x: 940
+        y: -160
+      positionAbsolute:
+        x: 940
+        y: -160
+      selected: false
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#prog_md.md#}}'
+        selected: false
+        title: 답변 (학습 진행)
+        type: answer
+        variables: []
+      height: 101
+      id: ans_prog
+      position:
+        x: 1240
+        y: -160
+      positionAbsolute:
+        x: 1240
+        y: -160
       selected: false
       sourcePosition: null
       targetPosition: null

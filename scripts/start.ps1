@@ -1,8 +1,9 @@
 ﻿# 데모를 한 번에 띄운다: Dify(Docker) → MCP 도구 서버 → 화면 빌드(필요할 때) → 중계 서버 → 브라우저
 # 사용: curation-agent 폴더에서  powershell -ExecutionPolicy Bypass -File scripts\start.ps1  [-Build]
 #   -Build  화면 코드를 고쳤을 때 다시 빌드한다 (빌드 결과가 없으면 자동으로 빌드)
-# 이미 켜져 있는 것은 건너뛴다. 끄기는 scripts\stop.ps1
-param([switch]$Build)
+#   -Kaggle 승인된 학습 계획을 Kaggle GPU에서 실제로 학습한다 (KAGGLE_LAUNCH=1). 없으면 계획까지만 만든다
+# 이미 켜져 있는 것은 건너뛴다 (-Kaggle을 바꿨으면 stop.ps1로 끄고 다시 켠다). 끄기는 scripts\stop.ps1
+param([switch]$Build, [switch]$Kaggle)
 
 $ErrorActionPreference = 'Stop'
 $Repo = Split-Path $PSScriptRoot -Parent
@@ -22,7 +23,8 @@ function Wait-Until([scriptblock]$Ok, [int]$Seconds, [string]$What) {
 }
 # 새 창에서 conda 환경 curation으로 파이썬 모듈을 띄운다. 창을 닫지 않아서 오류가 나면 그 창에서 볼 수 있다
 function Start-Module([string]$Module, [string]$Title) {
-    $cmd = "`$Host.UI.RawUI.WindowTitle='$Title'; Set-Location '$Repo'; `$env:PYTHONIOENCODING='utf-8'; conda run --no-capture-output -n curation python -m $Module"
+    $launch = if ($Kaggle) { '1' } else { '0' }
+    $cmd = "`$Host.UI.RawUI.WindowTitle='$Title'; Set-Location '$Repo'; `$env:PYTHONIOENCODING='utf-8'; `$env:KAGGLE_LAUNCH='$launch'; conda run --no-capture-output -n curation python -m $Module"
     Start-Process powershell -ArgumentList '-NoExit', '-Command', $cmd -WindowStyle Minimized
 }
 
