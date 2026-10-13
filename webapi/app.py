@@ -14,6 +14,9 @@ API
   GET  /api/results                Can 150 / Can 135 / Square 결과와 판정
   GET  /api/overview               소개 페이지 데이터 (산점도, 품질 신호, 구성)
   GET  /api/docs, /api/docs/{파일}   근거 문서 목록, 원문 링크와 전체 내용
+  GET  /api/kaggle/{대화ID}         그 대화의 Kaggle 학습 진행과 남은 GPU
+  POST /api/kaggle/{대화ID}/stop    학습 중단 (사람이 버튼으로)
+  POST /api/kaggle/{대화ID}/resume  멈춘 학습을 남은 실행부터 이어서
 """
 from __future__ import annotations
 
@@ -27,7 +30,7 @@ from starlette.responses import FileResponse, JSONResponse, Response, StreamingR
 from starlette.routing import Route
 from starlette.staticfiles import StaticFiles
 
-from webapi import data, dify
+from webapi import data, dify, kaggle
 from webapi.config import Settings, load
 
 settings: Settings = load()
@@ -75,7 +78,7 @@ async def _body(request: Request) -> dict:
     try:
         b = await request.json()
         return b if isinstance(b, dict) else {}
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, UnicodeDecodeError):  # UTF-8이 아닌 본문도 빈 요청으로 본다 (500 대신 400)
         return {}
 
 
@@ -168,6 +171,27 @@ async def doc(request: Request):
     return JSONResponse(d) if d else JSONResponse({"detail": "문서를 찾을 수 없습니다"}, status_code=404)
 
 
+async def kaggle_status(request: Request) -> JSONResponse:
+    return await _kaggle("status", request)
+
+
+async def kaggle_stop(request: Request) -> JSONResponse:
+    return await _kaggle("stop", request)
+
+
+async def kaggle_resume(request: Request) -> JSONResponse:
+    return await _kaggle("resume", request)
+
+
+async def _kaggle(stage: str, request: Request) -> JSONResponse:
+    sid = request.path_params["sid"]
+    if not kaggle.SID_RE.match(sid):
+        return JSONResponse({"detail": "잘못된 대화 ID"}, status_code=400)
+    # Kaggle 호출은 하위 프로세스라 몇 초 걸린다. 다른 요청을 막지 않게 스레드에서 돌린다
+    out = await asyncio.to_thread(kaggle.act, stage, sid, settings.runs_root, settings.events_path)
+    return JSONResponse(out)
+
+
 async def spa(request: Request):
     """빌드한 화면이 있으면 그 index.html을 돌려준다 (새로고침해도 /demo 같은 주소가 열리게)."""
     if request.url.path.startswith("/api/"):
@@ -190,6 +214,9 @@ routes = [
     Route("/api/overview", overview),
     Route("/api/docs", docs),
     Route("/api/docs/{name}", doc),
+    Route("/api/kaggle/{sid}", kaggle_status),
+    Route("/api/kaggle/{sid}/stop", kaggle_stop, methods=["POST"]),
+    Route("/api/kaggle/{sid}/resume", kaggle_resume, methods=["POST"]),
 ]
 app = Starlette(routes=routes)
 if (settings.web_dist / "assets").exists():

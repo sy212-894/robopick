@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import KagglePanel from '../components/KagglePanel'
 import PageHead from '../components/PageHead'
 import { getRun, getRuns, postCheck, type RunEvent, type RunRow } from '../lib/api'
 import { useApi } from '../lib/fmt'
@@ -36,6 +37,14 @@ function describe(e: RunEvent): string | null {
       return `학습 계획 ${e.detail}`
     case 'agent_log':
       return e.detail ?? '에이전트 기록'
+    case 'kaggle_launched':
+      return `Kaggle 학습 시작 · ${e.detail ?? ''}`
+    case 'kaggle_stopping':
+      return '사람이 Kaggle 학습 중단'
+    case 'kaggle_resumed':
+      return '사람이 Kaggle 학습 이어서 시작'
+    case 'kaggle_complete':
+      return 'Kaggle 학습 완료 · 결과 등록'
     default:
       return [e.event, e.detail].filter(Boolean).join(' · ')
   }
@@ -148,6 +157,8 @@ function Detail({ row }: { row: RunRow }) {
           </ol>
         </>
       )}
+
+      {row.plan && <KagglePanel sid={row.session_id} />}
 
       <div className="mt-5 flex flex-wrap gap-3">
         <button
