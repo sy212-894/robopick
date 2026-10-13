@@ -33,10 +33,10 @@ def candidates(demos: list[dict]) -> list[dict]:
     return [d for d in demos if d.get("split") == "train"]
 
 
-def quality_scores(pool: list[dict]) -> dict[str, float]:
+def quality_scores(pool: list[dict], signals: tuple[str, ...] = SCORE_SIGNALS) -> dict[str, float]:
     """신호마다 후보 안에서의 순위 백분위(0=가장 작음)를 구해 평균한다. 낮을수록 좋은 시범."""
     n = len(pool)
-    pct = [_rank(np.array([d[s] for d in pool], float)) / (n - 1) for s in SCORE_SIGNALS]
+    pct = [_rank(np.array([d[s] for d in pool], float)) / (n - 1) for s in signals]
     mean = np.mean(pct, axis=0)
     return {d["id"]: round(float(v), 4) for d, v in zip(pool, mean)}
 
@@ -145,11 +145,11 @@ def shift_reference(pool: list[dict], n: int, runs: int = 100) -> dict:
     return {"random_runs": runs, "mean": round(float(np.mean(vals)), 2), "p95": round(float(np.percentile(vals, 95)), 2)}
 
 
-def select(analysis: dict, budget: int = DEFAULT_BUDGET, seed: int = 0) -> dict:
+def select(analysis: dict, budget: int = DEFAULT_BUDGET, seed: int = 0, signals: tuple[str, ...] = SCORE_SIGNALS) -> dict:
     t0 = time.perf_counter()
     demos_by_id = {d["id"]: d for d in analysis["demos"]}
     pool = candidates(analysis["demos"])
-    scores = quality_scores(pool)
+    scores = quality_scores(pool, signals)
     planned = allocate(pool, budget)
     curated, allocation = select_curated(pool, scores, planned)
     curated = _sort_ids(curated)
@@ -187,7 +187,7 @@ def select(analysis: dict, budget: int = DEFAULT_BUDGET, seed: int = 0) -> dict:
         "allocation": allocation,
         "selected_ids": curated,
         "total_frames": curated_frames,
-        "settings": {"method": "조건별 비례 배분 + 칸 안 품질 점수 순", "score_signals": list(SCORE_SIGNALS),
+        "settings": {"method": "조건별 비례 배분 + 칸 안 품질 점수 순", "score_signals": list(signals),
                      "weights": "동일", "score": "신호별 순위 백분위 평균, 낮을수록 좋음",
                      "seed": seed, "frame_tolerance": FRAME_TOLERANCE},
         "sets": {name: {"n_demos": len(ids), "total_frames": frames_of(ids), "ids": ids} for name, ids in sets.items()},
@@ -234,13 +234,14 @@ def curated_filename(analysis: dict) -> str:
 
 
 def run(analysis_path: Path, out_root: Path = DEFAULT_OUT_ROOT, budget: int = DEFAULT_BUDGET,
-        seed: int = 0, run_id: str | None = None, write_hdf5: bool = True) -> Path:
+        seed: int = 0, run_id: str | None = None, write_hdf5: bool = True,
+        signals: tuple[str, ...] = SCORE_SIGNALS) -> Path:
     analysis = json.loads(Path(analysis_path).read_text(encoding="utf-8"))
     run_id = run_id or "R-" + dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     out = Path(out_root) / run_id
     out.mkdir(parents=True, exist_ok=True)
     result = {"run_id": run_id, "created_at": dt.datetime.now().isoformat(timespec="seconds"),
-              **select(analysis, budget, seed)}
+              **select(analysis, budget, seed, signals)}
     hdf5_path = out / curated_filename(analysis)
     t0 = time.perf_counter()
     if write_hdf5:
@@ -261,8 +262,10 @@ def main() -> None:
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--run-id")
     p.add_argument("--no-hdf5", action="store_true", help="필터 키 복사본을 만들지 않는다")
+    # 한계 점검용 (docs/10_robustness.md): 기본은 1단계에서 정한 신호 4개. 예) --signals length  또는 5개 모두
+    p.add_argument("--signals", nargs="+", default=list(SCORE_SIGNALS), help="품질 점수에 쓸 신호 (같은 가중치)")
     a = p.parse_args()
-    out = run(a.analysis, a.out_root, a.budget, a.seed, a.run_id, not a.no_hdf5)
+    out = run(a.analysis, a.out_root, a.budget, a.seed, a.run_id, not a.no_hdf5, tuple(a.signals))
     print(f"[select_demos] 저장: {out}")
 
 
