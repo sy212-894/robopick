@@ -4,7 +4,7 @@
 개발 중 화면은 web/에서 npm run dev (http://localhost:5173, /api는 이 서버로 넘어옴)
 
 API
-  GET  /api/health                 Dify(키 확인 포함)·도구 서버 연결 상태
+  GET  /api/health                 Dify(키 확인 포함)·도구 서버 연결 상태, Kaggle 자동 학습 켜짐 여부
   POST /api/chat                   {query, conversation_id?} → Dify 이벤트 실시간 흐름 (SSE)
   POST /api/approve                {form_token, action, workflow_run_id, conversation_id} → 이어지는 흐름 + final_message
   GET  /api/message/{대화ID}        마지막 메시지 (답변, 사용량, 근거 문서)
@@ -71,7 +71,7 @@ async def _check_tools() -> dict:
 
 async def health(request: Request) -> JSONResponse:
     d, t = await asyncio.gather(_check_dify(), _check_tools())
-    return JSONResponse({"dify": d, "tools": t})
+    return JSONResponse({"dify": d, "tools": t, "kaggle": {"launch_enabled": kaggle.KR.LAUNCH_ENABLED}})
 
 
 async def _body(request: Request) -> dict:
