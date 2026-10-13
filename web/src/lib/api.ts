@@ -3,6 +3,7 @@
 export type Health = {
   dify: { ok: boolean; detail: string }
   tools: { ok: boolean; detail: string }
+  kaggle?: { launch_enabled: boolean } // 승인 뒤 Kaggle GPU 학습을 실제로 올리는지 (start.ps1 -Kaggle)
 }
 
 export type Overview = {
