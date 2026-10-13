@@ -29,3 +29,8 @@ Kaggle API 실행 `qkdsy482/curation-seeds45` (노트북 `kaggle/05_seeds45.ipyn
 - 150개의 하락 기준은 시드 5개로도 확정하지 못했다. 전체 270의 시드 5가 30/100으로 낮아 흔들림이 커졌다(같은 데이터로 91~30). 결과를 빼지 않는다. 하락 기준은 135개 실험(B)으로 확인한 것으로 보고한다
 - 학습 속도(200 epoch, 30회): 시드 4 선별 29 / 무작위 19, 시드 5 선별 26 / 무작위 1. 시드 1~3과 같은 방향으로 선별이 크게 앞선다
 
+
+## 화면·채팅 표시 (10/13)
+- `python -m curation_tools.train_eval --save-paired-seeds results/can_mh_c15466d53a01cedb_paired_5seeds.json`로 저장했다. 저장할 때 시드+위치 신뢰구간(1만 번, 난수 20261013)을 한 번 계산해 파일에 넣고(`robust`), 결과 조회(collect)는 읽기만 한다 (매번 계산하면 10초쯤 걸림)
+- collect는 주 판정(paired_*, 시드 3개) 뒤에 `seeds_gain_vs_random`, `seeds_drop_vs_full`을 "추가 분석"으로 붙인다. 판정 규칙은 위 규칙 그대로다 (`train_eval.seeds_report`, `SEEDS_MIN_HIGHER = 4`)
+- 채팅 결과 표, 데모 보고, 실험 결과 페이지(Can 150 탭)에 주 판정과 함께 표시한다
