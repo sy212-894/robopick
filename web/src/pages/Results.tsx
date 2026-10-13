@@ -6,7 +6,7 @@ const isJudge = (x: unknown): x is Judge => typeof x === 'object' && x !== null 
 
 // 판정 문구 → 표시 배지. "더 나쁨"은 (전체 − 선별)처럼 앞쪽이 낮다는 뜻이라 문맥별 이름을 받는다
 function Badge({ j, negLabel }: { j: Judge; negLabel?: string }) {
-  const yes = j.verdict.startsWith('차이 있음') || (j.verdict === '더 나쁨' && !!negLabel)
+  const yes = j.verdict.startsWith('차이 있음') || j.verdict === '하락 기준 충족' || (j.verdict === '더 나쁨' && !!negLabel)
   const label = j.verdict.startsWith('차이 있음') ? '차이 있음' : j.verdict === '더 나쁨' ? negLabel ?? '더 나쁨' : j.verdict
   return (
     <span title={j.note} className={`whitespace-nowrap rounded px-2.5 py-0.5 text-xs ${yes ? 'bg-ok-soft text-ok-ink' : 'bg-line-soft text-body'}`}>
@@ -109,6 +109,9 @@ function CanTab({ can }: { can: R['can'] }) {
   const gain = p?.gain_vs_random ?? J('gain_vs_random')
   const drop = p?.drop_vs_full ?? J('drop_vs_full')
   const early = J('early_gain_vs_random')
+  // 추가 분석: 학습 시드를 늘린 짝지은 비교 (규칙은 결과 전에 정함). 주 판정은 그대로 두고 따로 보여준다
+  const sGain = J('seeds_gain_vs_random')
+  const sDrop = J('seeds_drop_vs_full')
   const cur = can.table?.find((r) => r.set === 'curated_150')
   const rnd = can.table?.find((r) => r.set === 'random_150')
   const nTest = p ? Math.round(p.rates.curated_150.rollouts / p.rates.curated_150.seeds) : can.config?.rollout_n
@@ -116,6 +119,8 @@ function CanTab({ can }: { can: R['can'] }) {
   const rows: Row[] = [
     gain && { name: '선별 − 무작위', kind: `주 판정 · ${p ? '짝지은 비교' : '비교'} · 1주차 목표 +5%p`, j: gain },
     drop && { name: '전체 − 선별', kind: `주 판정 · ${p ? '짝지은 비교' : '비교'} · 1주차 목표 하락 5%p 이내${drop.confirmed ? ' (충족)' : ''}`, j: drop, negLabel: '선별이 높음' },
+    sGain && { name: '선별 − 무작위', kind: `추가 분석 · 학습 시드 ${sGain.n_seeds}개 · 신뢰구간 0 위 + 시드 4개 이상 높음`, j: sGain },
+    sDrop && { name: '전체 − 선별', kind: `추가 분석 · 학습 시드 ${sDrop.n_seeds}개 · 시드+위치 신뢰구간 위쪽 끝 5%p 이내`, j: sDrop, negLabel: '선별이 높음' },
     early && { name: `${can.config?.early_eval_epoch} epoch 선별 − 무작위`, kind: '학습 속도', j: early },
     pick('effect_quality') && { name: '선별 − 조건별 균등', kind: '품질 점수 효과', j: pick('effect_quality')! },
     pick('same_frames') && { name: '선별 − 프레임 맞춘 무작위', kind: '같은 프레임 수', j: pick('same_frames')! },
@@ -126,6 +131,7 @@ function CanTab({ can }: { can: R['can'] }) {
       <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
         {gain && <Kpi accent label="주 판정 · 선별 − 무작위" value={pp(gain.diff)} sub={`신뢰구간 ${ciText(gain)} · ${gain.verdict.startsWith('차이 있음') ? '차이 있음' : gain.verdict}`} />}
         {drop && <Kpi label="주 판정 · 전체 − 선별" value={pp(drop.diff)} sub={drop.confirmed ? `1주차 기준 충족 · 하락 5%p 이내 (신뢰구간 끝 ${signed(drop.ci95[1], 1)}%p)` : drop.diff < 0 ? '선별이 더 높음 · 하락 없음' : drop.verdict} />}
+        {sGain && <Kpi label={`추가 분석 · 시드 ${sGain.n_seeds}개 · 선별 − 무작위`} value={pp(sGain.diff)} sub={`${sGain.verdict.startsWith('차이 있음') ? '차이 있음' : sGain.verdict} · ${sGain.note ?? ''}`} />}
         {early && <Kpi label={`학습 속도 · ${can.config?.early_eval_epoch} epoch`} value={pp(early.diff)} sub={`선별 ${pct(cur?.early?.success_rate)} vs 무작위 ${pct(rnd?.early?.success_rate)}`} />}
       </div>
       <div className="mt-4 rounded-md bg-warn-soft px-3.5 py-2.5 text-[13px] text-warn-ink">시험 {nTest}개 기준</div>

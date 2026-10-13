@@ -591,7 +591,8 @@ function Report({ answer, collect, approved, onReset }: { answer: string; collec
     : (collect?.table?.filter((r) => r.success_rate != null) ?? [])
   const max = Math.max(0.01, ...table.map((r) => r.success_rate ?? 0))
   const j = collect?.judgement ?? {}
-  const prim = (['paired_gain_vs_random', 'paired_drop_vs_full'] as const)
+  // 주 판정 두 개 + 학습 시드를 늘린 추가 분석 (있을 때만)
+  const prim = (['paired_gain_vs_random', 'paired_drop_vs_full', 'seeds_gain_vs_random', 'seeds_drop_vs_full'] as const)
     .map((k) => [k, j[k]] as const)
     .filter((x): x is readonly [typeof x[0], Judge] => typeof x[1] === 'object' && !!x[1])
   return (
@@ -635,11 +636,11 @@ function Report({ answer, collect, approved, onReset }: { answer: string; collec
             <ul className="mt-5 mb-0 flex list-none flex-col gap-2 p-0 text-sm">
               {prim.map(([k, x]) => (
                 <li key={k} className="flex flex-wrap items-baseline gap-2.5">
-                  <span className={`rounded px-2 py-0.5 text-xs ${x.verdict.startsWith('차이 있음') ? 'bg-ok-soft text-ok-ink' : 'bg-line-soft text-body'}`}>
+                  <span className={`rounded px-2 py-0.5 text-xs ${x.verdict.startsWith('차이 있음') || x.verdict === '하락 기준 충족' ? 'bg-ok-soft text-ok-ink' : 'bg-line-soft text-body'}`}>
                     {x.verdict}
                   </span>
                   <span>
-                    주 판정 · {k === 'paired_gain_vs_random' ? '선별 − 무작위' : '전체 − 선별'} {pp(x.diff, 1)}
+                    {k.startsWith('seeds_') ? `추가 분석 · 시드 ${x.n_seeds}개` : '주 판정'} · {k.endsWith('gain_vs_random') ? '선별 − 무작위' : '전체 − 선별'} {pp(x.diff, 1)}
                   </span>
                   <span className="text-sub">
                     (95% 신뢰구간 {signed(x.ci95[0], 1)} ~ {signed(x.ci95[1], 1)}%p{x.note ? `, ${x.note}` : ''})

@@ -279,6 +279,12 @@ def collect(run_dir: Path) -> dict:
             a["rollouts"] += len(r["outcomes"])
             a["seeds"] += 1
         out["paired"] = {"label": rep["label"], "rates": rates}
+    # 학습 시드를 늘린 추가 분석이 있으면 주 판정 뒤에 seeds_*로 붙인다 (주 판정은 그대로)
+    sdoc = _load_paired_seeds(run_dir, plan)
+    if sdoc:
+        rep = seeds_report(sdoc)
+        out["judgement"].update({k: v for k, v in rep.items() if k.startswith("seeds_")})
+        out["seeds_extra"] = {"label": rep["label"]}
     if reused:
         out["note"] = "같은 선별 결과·설정으로 미리 실행한 학습 결과를 불러왔다"
     return out
@@ -464,6 +470,91 @@ def paired_report(doc: dict) -> dict:
     return out
 
 
+# ---------- 추가 분석: 학습 시드를 늘린 짝지은 결과 (한계 1, 규칙은 결과 보기 전에 커밋 cfd710b) ----------
+# 주 판정(시드 3개)은 바꾸지 않고, 시드를 합친 결과에 미리 정한 규칙으로 판정을 따로 붙인다.
+# - 선별 - 무작위: 짝지은 비교의 신뢰구간(기존 계산)이 0보다 위 + 시드 5개 중 4개 이상에서 선별이 높음 (동점은 세지 않음)
+# - 하락 기준: 시드+위치 부트스트랩 신뢰구간 위쪽 끝 ≤ 5%p
+# 부트스트랩(1만 번)은 10초쯤 걸려서 저장할 때 한 번 계산해 파일(robust)에 넣고, collect는 읽기만 한다
+SEEDS_MIN_HIGHER = 4
+
+
+def _cur_rnd(doc: dict) -> tuple[str | None, str | None]:
+    present = {r["set"] for r in doc["runs"].values()}
+    cur = next((s for s in sorted(present) if s.startswith("curated")), None)
+    rnd = next((s for s in sorted(present) if s.startswith("random_") and s != "random_frames"), None)
+    return cur, rnd
+
+
+def save_paired_seeds(paired_path: Path, runs_root: Path) -> Path:
+    """시드를 합친 짝지은 결과(예: results_paired_5seeds.json)를 검사하고, 시드+위치 신뢰구간을 계산해 넣어 저장한다."""
+    from analysis import robust_ci as RC  # 저장할 때만 쓴다 (curation-agent 폴더에서 실행)
+    doc = json.loads(Path(paired_path).read_text(encoding="utf-8-sig"))
+    run_dir = runs_root / doc["run_id"]
+    plan = json.loads((run_dir / "plan" / "plan.json").read_text(encoding="utf-8"))
+    if doc.get("mode") != "paired" or doc.get("fingerprint") != plan["fingerprint"]:
+        raise ValueError("같은 계획의 짝지은 결과가 아니다 (mode·지문 확인)")
+    if doc.get("policy_seed") != "EVAL_SEED+i":
+        raise ValueError("행동 난수를 고정하지 않은 재평가는 짝지은 비교에 쓰지 않는다")
+    if any(r["set"] not in plan["sets"] for r in doc["runs"].values()):
+        raise ValueError("계획에 없는 묶음이 있다")
+    if len({len(r["outcomes"]) for r in doc["runs"].values()}) != 1:
+        raise ValueError("실행마다 시험 수가 다르다")
+    cur, rnd = _cur_rnd(doc)
+    doc["robust"] = {"gain_vs_random": RC.analyze(doc, cur, rnd), "drop_vs_full": RC.analyze(doc, "train", cur),
+                     "bootstrap": {"reps": RC.B, "seed": RC.SEED}}
+    body = json.dumps(doc, ensure_ascii=False, indent=1)
+    (run_dir / "results").mkdir(exist_ok=True)
+    dst = run_dir / "results" / "results_paired_seeds.json"
+    dst.write_text(body, encoding="utf-8")
+    RESULTS_STORE.mkdir(parents=True, exist_ok=True)
+    (RESULTS_STORE / f"{plan['fingerprint']}_paired_seeds.json").write_text(body, encoding="utf-8")
+    return dst
+
+
+def _load_paired_seeds(run_dir: Path, plan: dict) -> dict | None:
+    for f in (run_dir / "results" / "results_paired_seeds.json", RESULTS_STORE / f"{plan['fingerprint']}_paired_seeds.json"):
+        if f.exists():
+            doc = json.loads(f.read_text(encoding="utf-8"))
+            if doc.get("fingerprint") != plan["fingerprint"]:
+                raise ValueError("시드를 합친 짝지은 결과의 지문이 학습 계획과 다르다")
+            return doc
+    return None
+
+
+def seeds_report(doc: dict) -> dict:
+    """시드를 합친 짝지은 결과에 미리 정한 추가 분석 규칙으로 판정한다. 키는 seeds_* (주 판정 paired_*와 구분)."""
+    cur, rnd = _cur_rnd(doc)
+    rob = doc.get("robust") or {}
+    n_pos = sorted({len(r["outcomes"]) for r in doc["runs"].values()})
+    out: dict = {}
+    g = paired_diff(doc, cur, rnd)
+    n = g["n_seeds"]
+    higher = sum(1 for v in g["per_seed_diff"].values() if v > 0)
+    ok = g["ci95"][0] > 0 and higher >= SEEDS_MIN_HIGHER
+    rg = rob.get("gain_vs_random")
+    out["seeds_gain_vs_random"] = {
+        **{k: g[k] for k in ("diff", "ci95", "n_pairs", "n_seeds", "per_seed_diff")},
+        "ci95_seed_position": rg["ci95_seed_and_position"] if rg else None, "higher_seeds": higher,
+        "verdict": "차이 있음 (높음)" if ok else "구분 불가",
+        "note": f"시드 {n}개 중 {higher}개에서 선별이 높음. 규칙: 신뢰구간 0 위 + {SEEDS_MIN_HIGHER}개 이상 높음",
+        "question": f"선별 - 무작위, 학습 시드 {n}개 (추가 분석)"}
+    d = paired_diff(doc, "train", cur)
+    rd = rob.get("drop_vs_full")
+    drop = {**{k: d[k] for k in ("diff", "n_pairs", "n_seeds", "per_seed_diff")}, "target": MAX_DROP,
+            "question": f"전체 - 선별, 학습 시드 {n}개 (추가 분석, 하락 5%p 이내)"}
+    if rd:
+        lo, hi = rd["ci95_seed_and_position"]
+        # 하락 기준의 근거가 시드+위치 신뢰구간이라 ci95에는 그 값을 넣는다 (기존 계산 값은 ci95_paired)
+        drop.update(ci95=[lo, hi], ci95_paired=d["ci95"], confirmed=hi <= MAX_DROP,
+                    verdict="하락 기준 충족" if hi <= MAX_DROP else "하락 기준 미충족",
+                    note=f"시드+위치 신뢰구간 위쪽 끝 {hi * 100:+.1f}%p (기준 +5%p 이하)")
+    else:
+        drop.update(ci95=d["ci95"], confirmed=False, verdict="판정 보류", note="시드+위치 신뢰구간이 없다 (save_paired_seeds로 저장)")
+    out["seeds_drop_vs_full"] = drop
+    out["label"] = f"추가 분석 · 학습 시드 {n}개 짝지은 비교 (같은 위치 {'/'.join(map(str, n_pos))}개, 규칙은 결과 보기 전에 정함)"
+    return out
+
+
 def main() -> None:
     import argparse
     p = argparse.ArgumentParser(description="코랩 학습 결과를 저장하고 비교표를 출력한다")
@@ -471,8 +562,13 @@ def main() -> None:
     p.add_argument("--save-seeds", type=Path, help="Kaggle 추가 시드 결과 results_seeds.json")
     p.add_argument("--paired", type=Path, help="짝지은 재평가 결과 results_paired.json (판정만 출력)")
     p.add_argument("--save-paired", type=Path, help="짝지은 재평가 결과를 실행 폴더와 지문 저장소에 저장 (주 판정)")
+    p.add_argument("--save-paired-seeds", type=Path, help="시드를 합친 짝지은 결과를 저장 (추가 분석, 시드+위치 신뢰구간 계산)")
     p.add_argument("--runs-root", type=Path, default=Path("C:/curation-data/runs"))
     a = p.parse_args()
+    if a.save_paired_seeds:
+        dst = save_paired_seeds(a.save_paired_seeds, a.runs_root)
+        print(json.dumps(seeds_report(json.loads(dst.read_text(encoding="utf-8"))), ensure_ascii=False, indent=1))
+        return
     if a.paired:
         print(json.dumps(paired_report(json.loads(a.paired.read_text(encoding="utf-8-sig"))), ensure_ascii=False, indent=1))
         return

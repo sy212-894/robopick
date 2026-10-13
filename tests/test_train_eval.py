@@ -315,3 +315,25 @@ def test_paired_drop_confirmed_uses_ci_upper():
     assert d["diff"] == -0.1 and d["confirmed"] is True
     rep2 = T.paired_report(_paired_doc({**{("curated_135", s): mid for s in (1, 2, 3)}, **{("train", s): hi for s in (1, 2, 3)}}))
     assert rep2["drop_vs_full"]["confirmed"] is False
+
+
+def test_seeds_report_rule():
+    """추가 분석 규칙 (한계 1, cfd710b): 신뢰구간 0 위 + 시드 5개 중 4개 이상 높음. 동점은 세지 않는다. 하락 기준은 시드+위치 신뢰구간."""
+    from curation_tools import train_eval as TE
+
+    def doc(per_seed_hits, robust_hi):
+        runs = {}
+        for s, (c, r, t) in enumerate(per_seed_hits, start=1):
+            for name, k in (("curated_150", c), ("random_150", r), ("train", t)):
+                runs[f"{name}|seed{s}"] = {"set": name, "seed": s, "success": k, "outcomes": [1] * k + [0] * (100 - k)}
+        return {"runs": runs, "robust": {"drop_vs_full": {"ci95_seed_and_position": [-0.3, robust_hi]}}}
+
+    # 시드 2 동점, 나머지 4개 선별이 높음 → 차이 있음
+    r = TE.seeds_report(doc([(95, 66, 91), (76, 76, 68), (61, 49, 65), (73, 37, 79), (89, 66, 30)], 0.058))
+    g = r["seeds_gain_vs_random"]
+    assert g["higher_seeds"] == 4 and g["verdict"] == "차이 있음 (높음)" and g["n_seeds"] == 5
+    assert r["seeds_drop_vs_full"]["verdict"] == "하락 기준 미충족" and r["seeds_drop_vs_full"]["ci95"] == [-0.3, 0.058]
+    # 높은 시드가 3개뿐이면 신뢰구간이 0 위여도 구분 불가
+    r = TE.seeds_report(doc([(95, 66, 90), (76, 76, 90), (61, 61, 90), (73, 37, 90), (89, 66, 90)], 0.04))
+    assert r["seeds_gain_vs_random"]["higher_seeds"] == 3 and r["seeds_gain_vs_random"]["verdict"] == "구분 불가"
+    assert r["seeds_drop_vs_full"]["confirmed"] is True
