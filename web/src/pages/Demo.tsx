@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Markdown from '../components/Markdown'
-import { getDoc, type Collect, type Judge } from '../lib/api'
-import { pct, pp, signed, num, SET_NAMES } from '../lib/fmt'
+import { getDoc, postResult, type Judgement } from '../lib/api'
+import { pct, pp, signed } from '../lib/fmt'
 import { streamSSE, type DifyEvent } from '../lib/sse'
 
-// 데모: 요청 → Dify 실행(실시간) → 승인 카드 → 승인/거부 → 보고.
+// 데모: 요청 → Dify 실행(실시간) → 개수 확인 카드(사람) → 선별·검수·학습 키트 → 보고 → 결과 파일 올리기 → 판정.
 // 화면의 숫자는 모두 Dify 이벤트(노드 출력)와 도구 결과에서 온다
 
 type Phase = 'idle' | 'running' | 'pending' | 'resuming' | 'done' | 'rejected' | 'error'
@@ -31,18 +31,18 @@ type Review = {
   warnings: Note[]
   sets: Record<string, { n_demos: number; total_frames: number }>
   train_set: { n_demos: number; total_frames: number }
-  training_plan: { n_sets: number; algo: string; num_epochs: number; est_minutes: number }
 }
+// 진단 정리 노드의 출력: 개수 확인 카드에 보여 줄 진단·추천과 기본 개수
+type Diag = { status: string; run_id: string; dataset: string; default_budget: string; diag_md: string }
 type Form = { token: string; runId: string; content: string }
 // 검수 알림은 {check, detail} 객체로 온다 (예전 형식은 문자열)
 type Note = string | { check?: string; detail?: string }
-const noteText = (n: Note) => (typeof n === 'string' ? n : [n.check, n.detail].filter(Boolean).join(': '))
 
 const PRESETS = [
-  { label: 'Can 150개', q: 'can 데이터로 학습할 시범 150개 골라줘' },
-  { label: 'Can 135개 (50%)', q: 'can 데이터로 학습할 시범 135개 골라줘' },
-  { label: 'Square 150개', q: 'square 데이터로 학습할 시범 150개 골라줘' },
-  { label: '조건별 분포만 보기', q: 'can 데이터를 위치 조건별로 분석만 해줘' },
+  { label: 'Can 골라줘 (추천 개수)', q: 'can 데이터로 학습할 시범 골라줘' },
+  { label: 'Can 100개', q: 'can 데이터로 학습할 시범 100개 골라줘' },
+  { label: 'Square 골라줘', q: 'square 데이터로 학습할 시범 골라줘' },
+  { label: '데이터 추천받기', q: '캔을 집어서 통에 옮기는 걸 로봇에게 학습시키고 싶어. 어떤 데이터가 좋아?' },
   { label: '필터 키는 어떻게 써?', q: 'robomimic 필터 키는 어떻게 써?' },
 ]
 
@@ -51,18 +51,19 @@ const STEP: Record<string, string> = {
   translate: '질문 해석',
   retrieval: '근거 검색',
   agent: '에이전트 판단',
+  pend: '진단과 추천',
+  confirm: '개수 확인',
+  log_ok: '확정 기록',
+  sel: '선별',
   review: '검수',
-  approval: '승인',
-  log_ok: '승인 기록',
-  prep: '학습 계획',
-  coll: '결과 불러오기',
+  kit: '학습 키트',
   report: '보고 작성',
 }
 const MAIN = Object.keys(STEP)
 const VISIBLE = new Set(['llm', 'knowledge-retrieval', 'agent', 'tool', 'human-input'])
 const TOOL_OF: Record<string, string> = { llm: 'LLM', 'knowledge-retrieval': '지식베이스', 'human-input': '사람' }
 
-// 도구 노드 제목의 괄호 안이 도구 이름이다. 승인 기록 노드만 제목에 이름이 없다
+// 도구 노드 제목의 괄호 안이 도구 이름이다. 기록 노드만 제목에 이름이 없다
 const toolName = (title: string, id?: string) => (id === 'log_ok' ? 'log_event' : /\(([^)]+)\)/.exec(title)?.[1].replace(' ', '.') ?? title)
 const clock = (d: Date) => d.toTimeString().slice(0, 8)
 const sec = (x?: number) => (x == null ? '' : `${x.toFixed(1)}초`)
@@ -88,12 +89,13 @@ export default function Demo() {
   const [docs, setDocs] = useState<Evidence[]>([])
   const [review, setReview] = useState<Review | null>(null)
   const [form, setForm] = useState<Form | null>(null)
-  const [action, setAction] = useState<'approve' | 'reject' | null>(null)
+  const [diag, setDiag] = useState<Diag | null>(null)
+  const [action, setAction] = useState<'select' | 'cancel' | null>(null)
+  const [chosen, setChosen] = useState('')
   const [convId, setConvId] = useState('')
   const [answer, setAnswer] = useState('')
-  const [collect, setCollect] = useState<Collect | null>(null)
   const [cost, setCost] = useState<number | null>(null)
-  // 경과 시간: 실행 중인 구간만 더한다 (승인을 기다리는 시간은 빼고)
+  // 경과 시간: 실행 중인 구간만 더한다 (사람이 개수를 정하는 시간은 빼고)
   const [activeMs, setActiveMs] = useState(0)
   const segStart = useRef<number | null>(null)
   const [, tick] = useState(0)
@@ -122,13 +124,15 @@ export default function Demo() {
     switch (e.event) {
       case 'node_started':
       case 'node_finished': {
+        // 진단 정리(코드 노드)는 단계로 보이지 않지만, 출력은 개수 확인 카드에 쓴다
+        if (e.event === 'node_finished' && d.node_id === 'diag' && d.outputs) setDiag(d.outputs as Diag)
         if (!VISIBLE.has(d.node_type)) break
         const done = e.event === 'node_finished'
         setNodes((ns) => {
           const row: NodeRow = { id: d.node_id, type: d.node_type, title: d.title, done, elapsed: done ? d.elapsed_time : undefined }
           const k = ns.findIndex((n) => n.id === d.node_id)
           if (k < 0) return [...ns, row]
-          // 승인 뒤 다시 받는 지난 상태(snapshot)에는 시작 이벤트가 또 온다. 끝난 기록은 덮지 않는다
+          // 확인 뒤 다시 받는 지난 상태(snapshot)에는 시작 이벤트가 또 온다. 끝난 기록은 덮지 않는다
           if (!done && ns[k].done) return ns
           const copy = ns.slice()
           copy[k] = { ...row, elapsed: d.node_type === 'human-input' ? undefined : row.elapsed }
@@ -137,7 +141,6 @@ export default function Demo() {
         if (done && d.node_type === 'tool') {
           const out = d.outputs?.json?.[0]
           if (d.node_id === 'review' && out?.run_id) setReview(out as Review)
-          if (d.node_id === 'coll' && out) setCollect(out as Collect)
           setCalls((cs) => (cs.some((c) => c.id === d.node_id) ? cs : [...cs, { id: d.node_id, name: toolName(d.title, d.node_id), at: new Date(), elapsed: d.elapsed_time }]))
         }
         break
@@ -200,10 +203,11 @@ export default function Demo() {
     setDocs([])
     setReview(null)
     setForm(null)
+    setDiag(null)
     setAction(null)
+    setChosen('')
     setConvId('')
     setAnswer('')
-    setCollect(null)
     setCost(null)
     setActiveMs(0)
     segStart.current = null
@@ -233,16 +237,18 @@ export default function Demo() {
     }
   }
 
-  async function decide(act: 'approve' | 'reject') {
+  async function decide(act: 'select' | 'cancel', budget: string) {
     if (!form) return
     setAction(act)
+    setChosen(budget)
     setPhase('resuming')
     startSeg()
     const ac = new AbortController()
     abort.current = ac
     try {
-      await streamSSE('/api/approve', { form_token: form.token, action: act, workflow_run_id: form.runId, conversation_id: convId }, onEvent, ac.signal)
-      setPhase(act === 'approve' ? 'done' : 'rejected')
+      // 카드의 입력칸 값(고를 개수)을 Dify 양식 입력으로 넘긴다
+      await streamSSE('/api/approve', { form_token: form.token, action: act, workflow_run_id: form.runId, conversation_id: convId, inputs: { budget } }, onEvent, ac.signal)
+      setPhase(act === 'select' ? 'done' : 'rejected')
     } catch (err) {
       if (ac.signal.aborted) return
       setError((err as Error).message)
@@ -261,10 +267,10 @@ export default function Demo() {
   const status: Record<Phase, [string, string]> = {
     idle: ['요청 전', 'text-sub'],
     running: ['실행 중', 'text-accent'],
-    pending: ['승인 대기', 'text-accent'],
-    resuming: [action === 'reject' ? '거부 처리 중' : '학습 계획·결과 조회 중', 'text-accent'],
+    pending: ['개수 확인 대기', 'text-accent'],
+    resuming: [action === 'cancel' ? '취소 처리 중' : '선별·검수·학습 키트 만드는 중', 'text-accent'],
     done: ['완료', 'text-ok'],
-    rejected: ['거부됨', 'text-sub'],
+    rejected: ['취소됨', 'text-sub'],
     error: ['오류', 'text-danger'],
   }
 
@@ -274,7 +280,7 @@ export default function Demo() {
         <div className="dot-grid mb-6 rounded-[10px] border border-line bg-white px-7 pt-7 pb-6">
           <h1 className="m-0 text-[28px] font-semibold tracking-tight">데모</h1>
           <p className="mt-1.5 text-[15px] text-[#475060]">
-            요청을 보내면 에이전트가 분석하고 선별한 뒤, 학습 계획을 승인받습니다. 승인하면 학습 계획을 만들고, 같은 계획으로 미리 실행한 결과가 있으면 불러옵니다.
+            데이터를 분석해 위치 편중·중복을 진단하고, 실험으로 확인된 개수를 추천합니다. 사람이 개수를 확정하면 학습 전에 좋은 시범을 골라 바로 돌릴 수 있는 학습 키트를 줍니다. 학습은 자기 환경에서 하고, 결과 파일을 올리면 판정합니다.
           </p>
         </div>
 
@@ -336,7 +342,7 @@ export default function Demo() {
                 <div className="mb-3.5 flex items-baseline justify-between">
                   <h2 className="m-0 text-[15px] font-semibold">진행</h2>
                   <span className="font-mono text-xs text-sub">
-                    {busy ? `${elapsed.toFixed(1)}초 경과` : `총 ${elapsed.toFixed(1)}초${form ? ' (승인 대기 제외)' : ''}`}
+                    {busy ? `${elapsed.toFixed(1)}초 경과` : `총 ${elapsed.toFixed(1)}초${form ? ' (개수 확인 대기 제외)' : ''}`}
                   </span>
                 </div>
                 <ol className="relative m-0 flex list-none flex-col p-0">
@@ -344,8 +350,8 @@ export default function Demo() {
                   {nodes.map((n) => {
                     const human = n.type === 'human-input'
                     const waiting = human && !n.done
-                    const name = human ? (waiting ? '승인 대기' : action === 'reject' ? '승인 거부' : '승인') : STEP[n.id] ?? n.title
-                    const dot = waiting || !n.done ? DOT.wait : human && action === 'reject' ? DOT.stop : DOT.ok
+                    const name = human ? (waiting ? '개수 확인 대기' : action === 'cancel' ? '개수 확인 취소' : `개수 확정 ${chosen}개`) : STEP[n.id] ?? n.title
+                    const dot = waiting || !n.done ? DOT.wait : human && action === 'cancel' ? DOT.stop : DOT.ok
                     const tool = TOOL_OF[n.type] ?? (n.type === 'agent' ? `${model ?? 'LLM'} · 도구 ${agentCalls.length}회` : toolName(n.title, n.id))
                     return (
                       <li key={n.id}>
@@ -387,13 +393,13 @@ export default function Demo() {
             )}
 
             {form && (phase === 'pending' || phase === 'resuming') && (
-              <Approval review={review} form={form} busy={phase === 'resuming'} action={action} onDecide={decide} />
+              <Confirm diag={diag} form={form} busy={phase === 'resuming'} action={action} onDecide={decide} />
             )}
 
             {phase === 'rejected' && (
               <section className={`${card} p-6`}>
-                <h2 className="m-0 text-lg font-semibold">학습하지 않음</h2>
-                <p className="mt-2 text-sm text-[#475060]">학습 계획이 거부되어 학습을 진행하지 않습니다. 예산이나 데이터를 바꿔 다시 요청할 수 있습니다.</p>
+                <h2 className="m-0 text-lg font-semibold">고르지 않음</h2>
+                <p className="mt-2 text-sm text-[#475060]">개수 확인을 취소해 시범을 고르지 않았습니다. 개수나 데이터를 바꿔 다시 요청할 수 있습니다.</p>
                 {answer && (
                   <div className="mt-4 border-t border-line-soft pt-4">
                     <Markdown text={answer} />
@@ -405,7 +411,7 @@ export default function Demo() {
               </section>
             )}
 
-            {phase === 'done' && <Report answer={answer} collect={collect} approved={action === 'approve'} onReset={reset} />}
+            {phase === 'done' && <Report answer={answer} chosen={action === 'select' ? chosen : null} sid={convId} onReset={reset} />}
           </div>
 
           <aside className="flex min-w-0 flex-[1_1_300px] flex-col gap-4">
@@ -415,11 +421,11 @@ export default function Demo() {
                 <dt className="text-sub">상태</dt>
                 <dd className={`m-0 font-medium ${status[phase][1]}`}>{status[phase][0]}</dd>
                 <dt className="text-sub">실행 ID</dt>
-                <dd className="m-0 font-mono text-xs [overflow-wrap:anywhere]">{review?.run_id ?? '-'}</dd>
+                <dd className="m-0 font-mono text-xs [overflow-wrap:anywhere]">{review?.run_id ?? diag?.run_id ?? '-'}</dd>
                 <dt className="text-sub">대화 ID</dt>
                 <dd className="m-0 font-mono text-xs">{convId ? convId.slice(0, 8) : '-'}</dd>
                 <dt className="text-sub">데이터</dt>
-                <dd className="m-0">{review ? `${review.dataset} · 학습 후보 ${review.train_set.n_demos}개` : '-'}</dd>
+                <dd className="m-0">{review ? `${review.dataset} · 선별 후보 ${review.train_set.n_demos}개` : diag?.dataset || '-'}</dd>
                 <dt className="text-sub">모델</dt>
                 <dd className="m-0">{model ?? '-'}</dd>
                 <dt className="text-sub">응답 시간</dt>
@@ -457,193 +463,210 @@ export default function Demo() {
   )
 }
 
-// ---------- 승인 카드: 검수 도구가 낸 묶음 구성과 학습 계획 ----------
+// ---------- 개수 확인 카드 (사람 확인): 진단·추천·근거를 보고 고를 개수를 확정한다 ----------
 
-function Approval({ review, form, busy, action, onDecide }: {
-  review: Review | null
+function Confirm({ diag, form, busy, action, onDecide }: {
+  diag: Diag | null
   form: Form
   busy: boolean
-  action: 'approve' | 'reject' | null
-  onDecide: (a: 'approve' | 'reject') => void
+  action: 'select' | 'cancel' | null
+  onDecide: (a: 'select' | 'cancel', budget: string) => void
 }) {
-  const tp = review?.training_plan
-  const rows = review ? [...Object.entries(review.sets), ['train', review.train_set] as const] : []
-  const notes = review ? [...review.issues, ...review.warnings] : []
+  const [value, setValue] = useState(diag?.default_budget ?? '')
+  const [err, setErr] = useState<string | null>(null)
+  useEffect(() => setValue(diag?.default_budget ?? ''), [diag?.default_budget])
+  // 진단이 없으면(이벤트를 놓친 경우) Dify 양식 본문을 그대로 보여 준다. 입력칸 자리 표시는 지운다
+  const body = diag?.diag_md || form.content.replace(/\{\{#\$output\.\w+#\}\}/g, '').replace(/^## .*\n/, '')
+  const submit = () => {
+    const n = Number(value)
+    if (!Number.isInteger(n) || n < 10) {
+      setErr('10 이상의 정수를 넣어 주세요')
+      return
+    }
+    setErr(null)
+    onDecide('select', String(n))
+  }
   return (
-    <section aria-label="학습 승인 요청" className="overflow-hidden rounded-[10px] border border-[#9fb8ec] bg-white px-6 pb-6">
+    <section aria-label="고를 개수 확인" className="overflow-hidden rounded-[10px] border border-[#9fb8ec] bg-white px-6 pb-6">
       <div className="-mx-6 mb-5 flex items-center gap-2.5 bg-accent px-6 py-3 text-[13px] text-white">
         <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#fff" strokeWidth="2">
           <path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z" />
         </svg>
-        <span>사용자 확인 단계 · 승인 전에는 GPU를 쓰지 않습니다</span>
+        <span>사용자 확인 단계 · 진단을 보고 고를 개수를 정합니다</span>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="m-0 text-lg font-semibold">학습 승인 요청</h2>
+        <h2 className="m-0 text-lg font-semibold">고를 개수 확인</h2>
         <span className="rounded-xl bg-accent-soft px-2.5 py-1 text-xs text-accent-ink">사용자 확인 필요</span>
       </div>
-      {review ? (
-        <>
-          <p className="mt-2 text-sm text-[#475060]">
-            선별 결과 <span className="font-mono text-[13px]">{review.run_id}</span> · 데이터 {review.dataset} · 예산 {review.budget}개
-          </p>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[460px] border-collapse text-sm tabular-nums">
-              <thead>
-                <tr className="text-left text-xs text-sub">
-                  <th className="border-b border-line py-2 font-medium">묶음</th>
-                  <th className="border-b border-line py-2 font-medium">설명</th>
-                  <th className="border-b border-line py-2 text-right font-medium">시범</th>
-                  <th className="border-b border-line py-2 text-right font-medium">프레임</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(([k, v], i) => (
-                  <tr key={k}>
-                    <td className={`py-2.5 ${i < rows.length - 1 ? 'border-b border-line-soft' : ''} ${k.startsWith('curated') ? 'font-medium text-accent' : ''}`}>{k}</td>
-                    <td className={`py-2.5 text-body ${i < rows.length - 1 ? 'border-b border-line-soft' : ''}`}>{SET_NAMES[k]?.sub ?? (k === 'train' ? '전체' : '')}</td>
-                    <td className={`py-2.5 text-right ${i < rows.length - 1 ? 'border-b border-line-soft' : ''}`}>{v.n_demos}</td>
-                    <td className={`py-2.5 text-right ${i < rows.length - 1 ? 'border-b border-line-soft' : ''}`}>{num(v.total_frames)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
-            <div className="rounded-md bg-paper px-3.5 py-3">
-              <div className="text-xs text-sub">검수</div>
-              <div className={`mt-1 text-[15px] font-semibold ${review.verdict === 'pass' ? 'text-ok' : 'text-warn-ink'}`}>
-                {review.verdict === 'pass' ? '통과' : review.verdict} · {notes.length ? `알림 ${notes.length}건` : '경고 없음'}
-              </div>
-            </div>
-            {tp && (
-              <>
-                <div className="rounded-md bg-paper px-3.5 py-3">
-                  <div className="text-xs text-sub">학습 계획</div>
-                  <div className="mt-1 text-[15px] font-semibold">
-                    {tp.algo.toUpperCase().replace('_', '-')} {tp.num_epochs} epoch × {tp.n_sets}묶음
-                  </div>
-                </div>
-                <div className="rounded-md bg-paper px-3.5 py-3">
-                  <div className="text-xs text-sub">예상 시간</div>
-                  <div className="mt-1 text-[15px] font-semibold">약 {tp.est_minutes}분 (T4 GPU)</div>
-                </div>
-              </>
-            )}
-          </div>
-          {notes.length > 0 && (
-            <ul className="mt-3 mb-0 flex list-disc flex-col gap-1 pl-5 text-[13px] text-warn-ink">
-              {notes.map((n, i) => (
-                <li key={i}>{noteText(n)}</li>
-              ))}
-            </ul>
-          )}
-        </>
-      ) : (
-        <div className="mt-3">
-          <Markdown text={form.content} />
-        </div>
-      )}
-      <p className="mt-4 text-[13px] text-sub">
-        승인하면 학습 계획을 만들고, 같은 계획으로 미리 실행한 결과가 있으면 그 결과를 불러옵니다.
-      </p>
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className="mt-3">
+        <Markdown text={body} />
+      </div>
+      <form
+        className="mt-5 flex flex-wrap items-end gap-3"
+        onSubmit={(e) => {
+          e.preventDefault()
+          submit()
+        }}
+      >
+        <label className="flex flex-col gap-1.5 text-[13px] text-[#475060]">
+          고를 개수
+          <input
+            type="number"
+            inputMode="numeric"
+            min={10}
+            value={value}
+            disabled={busy}
+            onChange={(e) => {
+              setValue(e.target.value)
+              setErr(null)
+            }}
+            aria-invalid={!!err}
+            className="h-11 w-32 rounded-md border border-field bg-white px-3 text-[15px] text-ink tabular-nums disabled:bg-paper"
+          />
+        </label>
         <button
-          type="button"
+          type="submit"
           disabled={busy}
-          onClick={() => onDecide('approve')}
           className="h-11 cursor-pointer rounded-md bg-accent px-[22px] text-[15px] font-semibold text-white disabled:cursor-wait disabled:opacity-60"
         >
-          {busy && action === 'approve' ? '처리 중' : '승인하고 학습 계획 만들기'}
+          {busy && action === 'select' ? '처리 중' : '이 개수로 고르기'}
         </button>
         <button
           type="button"
           disabled={busy}
-          onClick={() => onDecide('reject')}
+          onClick={() => onDecide('cancel', value)}
           className="h-11 cursor-pointer rounded-md border border-field bg-white px-[18px] text-[15px] text-ink disabled:cursor-wait disabled:opacity-60"
         >
-          {busy && action === 'reject' ? '처리 중' : '거부'}
+          {busy && action === 'cancel' ? '처리 중' : '취소'}
         </button>
-      </div>
+      </form>
+      {err && <p role="alert" className="mt-2 mb-0 text-[13px] text-danger">{err}</p>}
+      <p className="mt-4 mb-0 text-[13px] text-sub">
+        고르면 바로 선별·검수하고 학습 키트를 만듭니다. 학습은 하지 않으며 GPU를 쓰지 않습니다. 개수는 10부터 선별 후보 수까지입니다.
+      </p>
     </section>
   )
 }
 
-// ---------- 보고: 최종 답변 + 결과 조회 도구의 성공률 막대 (판정은 답변 안의 표에 있다) ----------
+// ---------- 보고: 최종 답변(학습 키트·근거·수집 계획) + 학습 결과 올리기 → 판정 ----------
 
-function Report({ answer, collect, approved, onReset }: { answer: string; collect: Collect | null; approved: boolean; onReset: () => void }) {
-  // 짝지은 재평가(주 판정)가 있으면 그 성공률을, 없으면 결과 조회 도구의 합산 성공률을 막대로 그린다
-  const pr = collect?.paired?.rates
-  const table = pr
-    ? (collect?.table ?? []).filter((r) => pr[r.set]).map((r) => ({ set: r.set, success_rate: pr[r.set].success / pr[r.set].rollouts }))
-    : (collect?.table?.filter((r) => r.success_rate != null) ?? [])
-  const max = Math.max(0.01, ...table.map((r) => r.success_rate ?? 0))
-  const j = collect?.judgement ?? {}
-  // 주 판정 두 개 + 학습 시드를 늘린 추가 분석 (있을 때만)
-  const prim = (['paired_gain_vs_random', 'paired_drop_vs_full', 'seeds_gain_vs_random', 'seeds_drop_vs_full'] as const)
-    .map((k) => [k, j[k]] as const)
-    .filter((x): x is readonly [typeof x[0], Judge] => typeof x[1] === 'object' && !!x[1])
+function Report({ answer, chosen, sid, onReset }: { answer: string; chosen: string | null; sid: string; onReset: () => void }) {
   return (
-    <section className={`${card} p-6`}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="m-0 text-lg font-semibold">보고</h2>
-        {approved && collect?.fingerprint && (
-          <span className="rounded-xl bg-ok-soft px-2.5 py-1 text-xs text-ok-ink">승인됨 · 계획 {collect.fingerprint}</span>
-        )}
-      </div>
-      <div className="mt-3">{answer ? <Markdown text={answer} /> : <p className="text-sm text-sub">답변이 비어 있습니다.</p>}</div>
-
-      {collect && collect.status === 'not_trained' && (
-        <div className="mt-6 rounded-md bg-warn-soft px-4 py-3 text-[13px] text-warn-ink">
-          이 계획(지문 {collect.fingerprint})은 아직 학습 결과가 없습니다.
+    <>
+      <section className={`${card} p-6`}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="m-0 text-lg font-semibold">보고</h2>
+          {chosen && <span className="rounded-xl bg-ok-soft px-2.5 py-1 text-xs text-ok-ink">개수 확정 · {chosen}개</span>}
         </div>
-      )}
+        <div className="mt-3">{answer ? <Markdown text={answer} /> : <p className="text-sm text-sub">답변이 비어 있습니다.</p>}</div>
+        <button type="button" onClick={onReset} className={`${btnLine} mt-4`}>
+          새 요청
+        </button>
+      </section>
+      {chosen && sid && <ResultUpload sid={sid} />}
+    </>
+  )
+}
 
-      {table.length > 0 && (
-        <>
-          <div className="mt-6 text-[13px] text-sub">
-            {collect?.paired
-              ? `최종 성공률 · ${collect.paired.label}`
-              : `결과 조회 도구가 돌려준 최종 성공률${collect?.status === 'partial' ? ' · 일부 묶음만 끝남' : ''} · 시드별 시험을 합친 값`}
+// 사용자가 학습 키트로 학습한 뒤 결과 파일을 올리면 판정한다 (선별·무작위·전체면 선별 효과 판정, 선별만이면 결과 확인)
+function ResultUpload({ sid }: { sid: string }) {
+  const [res, setRes] = useState<Judgement | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const onFile = async (f: File | undefined) => {
+    if (!f) return
+    setErr(null)
+    setRes(null)
+    if (!f.name.endsWith('.json')) {
+      setErr('노트북이 만든 결과 파일(results_main_<지문>.json)을 골라 주세요')
+      return
+    }
+    setBusy(true)
+    try {
+      setRes(await postResult(sid, await f.text()))
+    } catch (e) {
+      setErr((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+  const names: Record<string, string> = { curated: '선별', random: '무작위', train: '전체' }
+  const g = res?.gain_vs_random
+  const d = res?.drop_vs_full
+  return (
+    <section aria-label="학습 결과 올리기" className={`${card} p-6`}>
+      <h2 className="m-0 text-lg font-semibold">학습 결과 올리기</h2>
+      <p className="mt-1.5 mb-0 text-sm text-[#475060]">
+        노트북이 끝나면 결과 폴더(curation_results)의 결과 파일을 올립니다. 비교 학습이면 선별 효과를 판정하고, 선별만 학습했으면 성공률과 우리 실험의 비슷한 결과를 보여 줍니다.
+      </p>
+      <label className="mt-4 inline-flex h-10 cursor-pointer items-center rounded-md border border-field bg-white px-4 text-sm text-ink">
+        {busy ? '판정 중' : '결과 파일 고르기'}
+        <input type="file" accept=".json,application/json" className="sr-only" disabled={busy} onChange={(e) => onFile(e.target.files?.[0])} />
+      </label>
+      {err && <p role="alert" className="mt-3 mb-0 text-[13px] text-danger">{err}</p>}
+      {res && (
+        <div className="mt-5 border-t border-line-soft pt-4">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h3 className="m-0 text-[15px] font-semibold">{res.title}</h3>
+            <span className="text-[13px] text-sub">
+              {res.dataset} · 선별 {res.budget}개 · {res.epoch} epoch{res.platform ? ` · ${res.platform}` : ''}
+            </span>
           </div>
-          <div className="mt-3 flex flex-col gap-2.5">
-            {table.map((r) => (
-              <div key={r.set} className="flex items-center gap-3">
-                <span className={`w-36 text-sm ${r.set.startsWith('curated') ? 'font-medium' : ''}`}>{SET_NAMES[r.set]?.name ?? r.set}</span>
-                <div className="h-[22px] flex-1 rounded-[3px] bg-line-soft">
-                  <div
-                    className={`h-[22px] rounded-[3px] ${r.set.startsWith('curated') ? 'bg-accent' : r.set === 'train' ? 'bg-[#39424e]' : 'bg-[#9aa3ae]'}`}
-                    style={{ width: `${((r.success_rate ?? 0) / max) * 100}%` }}
-                  />
-                </div>
-                <span className={`w-12 text-right text-sm ${r.set.startsWith('curated') ? 'font-semibold' : ''}`}>{pct(r.success_rate)}</span>
-              </div>
-            ))}
-          </div>
-          {prim.length > 0 && (
-            <ul className="mt-5 mb-0 flex list-none flex-col gap-2 p-0 text-sm">
-              {prim.map(([k, x]) => (
-                <li key={k} className="flex flex-wrap items-baseline gap-2.5">
-                  <span className={`rounded px-2 py-0.5 text-xs ${x.verdict.startsWith('차이 있음') || x.verdict === '하락 기준 충족' ? 'bg-ok-soft text-ok-ink' : 'bg-line-soft text-body'}`}>
-                    {x.verdict}
-                  </span>
-                  <span>
-                    {k.startsWith('seeds_') ? `추가 분석 · 시드 ${x.n_seeds}개` : '주 판정'} · {k.endsWith('gain_vs_random') ? '선별 − 무작위' : '전체 − 선별'} {pp(x.diff, 1)}
-                  </span>
-                  <span className="text-sub">
-                    (95% 신뢰구간 {signed(x.ci95[0], 1)} ~ {signed(x.ci95[1], 1)}%p{x.note ? `, ${x.note}` : ''})
-                  </span>
+          <table className="mt-3 w-full max-w-[520px] border-collapse text-sm tabular-nums">
+            <tbody>
+              {Object.entries(res.rates).map(([k, x]) => (
+                <tr key={k}>
+                  <td className="border-b border-line-soft py-2">{names[k] ?? k}</td>
+                  <td className="border-b border-line-soft py-2 text-right font-medium">{pct(x!.rate)}</td>
+                  <td className="border-b border-line-soft py-2 pl-3 text-right text-sub">
+                    {x!.success}/{x!.rollouts} · {pct(x!.ci95[0])}~{pct(x!.ci95[1])}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {res.kind === 'effect' && (
+            <ul className="mt-4 mb-0 flex list-none flex-col gap-2 p-0 text-sm">
+              {g && (
+                <li className="flex flex-wrap items-baseline gap-2.5">
+                  <span className={`rounded px-2 py-0.5 text-xs ${g.verdict.startsWith('차이 있음') ? 'bg-ok-soft text-ok-ink' : 'bg-line-soft text-body'}`}>{g.verdict}</span>
+                  <span>선별 − 무작위 {pp(g.diff, 1)}</span>
+                  <span className="text-sub">(95% 신뢰구간 {signed(g.ci95[0], 1)} ~ {signed(g.ci95[1], 1)}%p)</span>
                 </li>
+              )}
+              {d && (
+                <li className="flex flex-wrap items-baseline gap-2.5">
+                  <span className={`rounded px-2 py-0.5 text-xs ${d.confirmed ? 'bg-ok-soft text-ok-ink' : 'bg-line-soft text-body'}`}>
+                    {d.confirmed ? '하락 기준 충족' : '하락 기준 확인 안 됨'}
+                  </span>
+                  <span>전체 − 선별 {pp(d.diff, 1)}</span>
+                  <span className="text-sub">(신뢰구간 위쪽 끝 {signed(d.ci95[1], 1)}%p, 기준 +5%p 이하)</span>
+                </li>
+              )}
+              {(res.missing ?? []).map((m) => (
+                <li key={m} className="text-[13px] text-sub">{names[m] ?? m} 묶음 결과가 없어 그 비교는 하지 않았습니다</li>
               ))}
             </ul>
           )}
-          <p className="mt-5 text-xs text-sub">
-            수치와 판정은 도구가 계산했습니다. 묶음별 자세한 비교는 <Link to="/results">실험 결과</Link>에 있습니다.
-          </p>
-        </>
+          {res.evidence && res.evidence.rows.length > 0 && (
+            <div className="mt-4 text-[13px] text-body">
+              <div className="text-sub">우리 실험의 비슷한 결과{res.evidence.same_plan ? ' (같은 학습 계획)' : ''}</div>
+              <ul className="mt-1.5 mb-0 flex list-disc flex-col gap-1 pl-5">
+                {res.evidence.rows.map((r) => (
+                  <li key={`${r.dataset}-${r.budget}`}>
+                    {r.dataset} · {r.budget}개:{' '}
+                    {Object.entries(r.rates)
+                      .map(([k, x]) => `${names[k] ?? k} ${pct(x!.rate)}`)
+                      .join(', ')}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {res.note && <p className="mt-3 mb-0 text-[13px] text-warn-ink">{res.note}</p>}
+          <p className="mt-3 mb-0 text-xs text-sub">판정은 코드가 같은 시험 위치끼리 짝지어 계산했습니다. 결과는 이 대화의 기록에 남고, 우리 실험 결과는 바꾸지 않습니다.</p>
+        </div>
       )}
-      <button type="button" onClick={onReset} className={`${btnLine} mt-4`}>
-        새 요청
-      </button>
     </section>
   )
 }

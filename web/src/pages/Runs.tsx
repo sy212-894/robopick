@@ -34,6 +34,10 @@ function describe(e: RunEvent): string | null {
       return `검수 ${e.detail}`
     case 'prepared':
       return `학습 계획 ${e.detail}`
+    case 'kit':
+      return `학습 키트 만듦 · 계획 ${e.detail}`
+    case 'judged':
+      return '사용자가 올린 학습 결과 판정'
     case 'agent_log':
       return e.detail ?? '에이전트 기록'
     default:
