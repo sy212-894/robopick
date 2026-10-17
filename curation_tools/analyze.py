@@ -5,6 +5,11 @@
   (Can은 원통이라 원래 영향이 적고, Square는 2026-10-12 데이터 확인에서 ±7도로 측정).
 - 품질 후보 신호: 경로 길이, 움직임 거칠기, 정지 비율, 그리퍼 개폐 횟수.
 - 숙련도 라벨(worse/okay/better)은 선별에 쓰지 않고, 품질 신호가 맞는지 검증하는 데만 쓴다.
+- 진단(2026-10-17, 선별 전에 사람이 보는 정보. 선별 방법은 바꾸지 않는다):
+  편중 = 물체 초기 위치를 같은 넓이 3x3 칸으로 나눠 칸별 시범 수를 세고, 평균의 절반 미만인 칸을 부족으로 표시
+  (조건 격자는 분위수라 칸마다 개수가 비슷하게 나뉘어 편중이 보이지 않는다. 그래서 진단은 같은 넓이로 본다).
+  수집 계획 = 부족한 칸마다 평균 수준까지 더 모을 개수. 이 수집이 성공률을 높이는지는 실험하지 않았다.
+  중복 = 팔 끝 궤적을 20점으로 줄여 두 시범의 평균 거리가 2cm 미만이면 거의 같은 시범으로 표시
 
 사용: python -m curation_tools.analyze --dataset C:/curation-data/raw/can_mh_low_dim.hdf5
 """
@@ -23,6 +28,8 @@ DEFAULT_OUT_ROOT = Path("C:/curation-data/runs")
 QUALITY_LEVELS = ("worse", "okay", "better")
 QUALITY_SIGNALS = ("path_length", "action_roughness", "idle_ratio", "gripper_switches")
 OBJECT_LABEL = {"PickPlaceCan": "캔", "NutAssemblySquare": "너트"}  # 환경 이름 → 그림·설명에 쓸 물체 이름
+DUP_THRESHOLD_M = 0.02  # 궤적 20점 평균 거리 2cm 미만 = 거의 같은 시범 (Can·Square 학습 후보에는 0쌍, 가장 가까운 쌍 약 3cm)
+PATH_POINTS = 20
 IDLE_THRESHOLD_M = 0.001  # 한 프레임(1/20초) 동안 팔 끝 이동이 1mm 미만이면 정지로 본다 (= 2cm/s 미만)
 
 
@@ -41,9 +48,9 @@ def _yaw_from_xyzw(q: np.ndarray) -> float:
 
 
 def _labels(f: h5py.File) -> dict[str, dict]:
-    """필터 키에서 시범별 숙련도·운영자·분할 정보를 읽는다."""
+    """필터 키에서 시범별 숙련도·운영자·분할 정보를 읽는다. 숙련도 라벨이 없는 데이터(PH, 사용자 파일)도 읽는다."""
     mask = f["mask"]
-    names = lambda key: {n.decode() if isinstance(n, bytes) else str(n) for n in mask[key][()]}
+    names = lambda key: {n.decode() if isinstance(n, bytes) else str(n) for n in mask[key][()]} if key in mask else set()
     info: dict[str, dict] = {}
     for level in QUALITY_LEVELS:
         for op in (1, 2):
@@ -51,6 +58,8 @@ def _labels(f: h5py.File) -> dict[str, dict]:
                 info.setdefault(demo, {})["quality"] = level
                 info[demo]["operator"] = f"{level}_operator_{op}"
     train, valid = names("train"), names("valid")
+    for demo in train | valid:
+        info.setdefault(demo, {})
     for demo, d in info.items():
         d["split"] = "train" if demo in train else ("valid" if demo in valid else None)
     return info
@@ -133,6 +142,8 @@ def signal_vs_quality(demos: list[dict]) -> dict:
     """품질 후보 신호를 숙련도별로 비교한다 (검증용, 선별에는 라벨을 쓰지 않는다)."""
     order = {"worse": 0, "okay": 1, "better": 2}
     labeled = [d for d in demos if d.get("quality") in order]
+    if not labeled:
+        return {}  # 숙련도 라벨이 없는 데이터는 신호 검증을 하지 않는다
     level = [order[d["quality"]] for d in labeled]
     out = {}
     for s in ("length",) + QUALITY_SIGNALS:
@@ -144,23 +155,71 @@ def signal_vs_quality(demos: list[dict]) -> dict:
     return out
 
 
+def _path(demo: h5py.Group) -> np.ndarray:
+    e = demo["obs"]["robot0_eef_pos"][()]
+    return e[np.linspace(0, len(e) - 1, PATH_POINTS).round().astype(int)]
+
+
+def diagnose(demos: list[dict], paths: dict[str, np.ndarray], grid: int = 3) -> dict:
+    """선별 후보(학습 분할, 없으면 전체)의 편중·중복·수집 계획."""
+    pool = [d for d in demos if d.get("split") == "train"] or demos
+    xs, ys = np.array([d["init_x"] for d in pool]), np.array([d["init_y"] for d in pool])
+    xe, ye = np.linspace(xs.min(), xs.max(), grid + 1), np.linspace(ys.min(), ys.max(), grid + 1)
+    xi = np.clip(np.searchsorted(xe[1:-1], xs, side="right"), 0, grid - 1)
+    yi = np.clip(np.searchsorted(ye[1:-1], ys, side="right"), 0, grid - 1)
+    counts = np.zeros((grid, grid), int)
+    for a, b in zip(xi, yi):
+        counts[a, b] += 1
+    mean = counts.mean()
+    cells = [{"cell": f"x{i}y{j}", "x": [round(float(xe[i]), 3), round(float(xe[i + 1]), 3)],
+              "y": [round(float(ye[j]), 3), round(float(ye[j + 1]), 3)], "count": int(counts[i, j])}
+             for i in range(grid) for j in range(grid)]
+    low = [{**c, "need": int(np.ceil(mean - c["count"]))} for c in cells if c["count"] < 0.5 * mean]
+    ids = [d["id"] for d in pool if d["id"] in paths]
+    P = np.stack([paths[i] for i in ids])
+    D = np.sqrt(((P[:, None] - P[None]) ** 2).sum(-1)).mean(-1)
+    iu = np.triu_indices(len(ids), 1)
+    order = np.argsort(D[iu])
+    pairs = [{"a": ids[iu[0][k]], "b": ids[iu[1][k]], "distance_m": round(float(D[iu][k]), 4)}
+             for k in order[:10] if D[iu][k] < DUP_THRESHOLD_M]
+    return {
+        "pool": len(pool),
+        "coverage": {"grid": grid, "basis": "물체 초기 위치를 같은 넓이 칸으로 나눔 (선별 조건의 분위수 칸과 다름)",
+                     "mean": round(float(mean), 1), "cells": cells, "low_cells": low,
+                     "rule": "평균의 절반 미만 = 부족, 수집 계획 = 평균까지 더 모을 개수 (효과는 실험하지 않음)"},
+        "collection_plan": [{"cell": c["cell"], "x": c["x"], "y": c["y"], "have": c["count"], "collect": c["need"]} for c in low],
+        "duplicates": {"threshold_m": DUP_THRESHOLD_M, "n_pairs": int((D[iu] < DUP_THRESHOLD_M).sum()), "pairs": pairs,
+                       "closest_m": round(float(D[iu].min()), 4) if len(ids) > 1 else None,
+                       "rule": f"팔 끝 궤적 {PATH_POINTS}점 평균 거리 {DUP_THRESHOLD_M * 100:.0f}cm 미만 = 거의 같은 시범"},
+    }
+
+
 def analyze(dataset: Path, grid: int = 3) -> dict:
     with h5py.File(dataset, "r") as f:
         names = sorted(f["data"].keys(), key=lambda k: int(k.split("_")[1]))
-        labels = _labels(f)
-        demos = []
+        labels = _labels(f) if "mask" in f else {}
+        demos, paths = [], {}
         for name in names:
             d = {"id": name, **demo_features(f["data"][name]), **labels.get(name, {})}
             demos.append(d)
+            paths[name] = _path(f["data"][name])
+        split_note = None
+        if not any(d.get("split") for d in demos):
+            # 학습/평가 분할(train 필터 키)이 없는 사용자 파일은 전체를 선별 후보로 쓴다
+            for d in demos:
+                d["split"] = "train"
+            split_note = "train 필터 키가 없어 시범 전체를 선별 후보로 썼다"
         env_name = json.loads(f["data"].attrs["env_args"]).get("env_name")
     obj = OBJECT_LABEL.get(env_name, "물체")
     cond_def = assign_conditions(demos, grid, obj)
     return {
         "dataset": {"name": dataset_name(dataset), "path": str(dataset), "sha256": _sha256(dataset), "env_name": env_name, "object": obj,
-                    "n_demos": len(demos), "total_frames": int(sum(d["length"] for d in demos))},
+                    "n_demos": len(demos), "total_frames": int(sum(d["length"] for d in demos)),
+                    "n_candidates": sum(d.get("split") == "train" for d in demos), "split_note": split_note},
         "condition_definition": cond_def,
         "conditions": condition_stats(demos, grid),
         "signal_vs_quality": signal_vs_quality(demos),
+        "diagnosis": diagnose(demos, paths),
         "demos": demos,
     }
 
@@ -170,12 +229,22 @@ def summarize(result: dict) -> dict:
     lengths = [d["length"] for d in result["demos"]]
     return {
         "run_id": result["run_id"],
-        "dataset": {k: result["dataset"][k] for k in ("name", "env_name", "n_demos", "total_frames") if k in result["dataset"]},
+        "dataset": {k: result["dataset"][k] for k in ("name", "env_name", "n_demos", "total_frames", "n_candidates", "split_note") if k in result["dataset"]},
         "length": {"min": int(min(lengths)), "mean": round(float(np.mean(lengths)), 1), "max": int(max(lengths))},
         "condition_definition": result["condition_definition"],
         "conditions": [{k: c[k] for k in ("condition", "count", "mean_length", "total_frames")} for c in result["conditions"]],
         "quality_signals": list(QUALITY_SIGNALS),
+        "diagnosis": _diag_summary(result.get("diagnosis")),
     }
+
+
+def _diag_summary(diag: dict | None) -> dict | None:
+    """LLM에는 중복 쌍의 시범 ID를 빼고 개수와 거리만 넘긴다 (전체 목록은 analysis.json에 있다)."""
+    if not diag:
+        return diag
+    dup = {k: v for k, v in diag["duplicates"].items() if k != "pairs"}
+    dup["pair_distances_m"] = [p["distance_m"] for p in diag["duplicates"]["pairs"]]
+    return {**diag, "duplicates": dup}
 
 
 def plot_positions(result: dict, path: Path) -> None:

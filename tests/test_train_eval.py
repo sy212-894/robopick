@@ -44,7 +44,7 @@ def fake_results(plan: dict, rates: dict, n: int = 50) -> dict:
 async def test_prepare_and_collect(isolated):
     async with create_connected_server_and_client_session(srv.mcp._mcp_server) as s:
         a = await call(s, "analyze_data", {"session_id": "c"})
-        await call(s, "select_demos", {"analysis_run_id": a["run_id"], "session_id": "c"})
+        await call(s, "select_demos", {"analysis_run_id": a["run_id"], "budget": 150, "session_id": "c"})
         # 검수 pass 전에는 prepare 대상이 없다
         none = await call(s, "train_evaluate", {"stage": "prepare", "session_id": "c"})
         assert none["status"] == "no_target"

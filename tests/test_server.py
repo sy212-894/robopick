@@ -41,17 +41,22 @@ def events(tmp_path):
 async def test_tools_listed():
     async with create_connected_server_and_client_session(srv.mcp._mcp_server) as s:
         names = {t.name for t in (await s.list_tools()).tools}
-    assert names == {"analyze_data", "select_demos", "review_selection", "train_evaluate", "log_event"}
+    assert names == {"suggest_datasets", "analyze_data", "recommend_budget", "select_demos", "review_selection",
+                     "train_evaluate", "log_event"}
 
 
 async def test_analyze_then_select(isolated):
     async with create_connected_server_and_client_session(srv.mcp._mcp_server) as s:
         res, a = await call(s, "analyze_data", {"dataset": "can_mh", "session_id": "conv-1"})
         assert not res.isError and a["dataset"]["n_demos"] == 300 and len(a["conditions"]) == 9
-        res, sel = await call(s, "select_demos", {"analysis_run_id": a["run_id"], "session_id": "conv-1"})
+        # 분석에 진단과 추천 개수가 붙는다 (Can: 근거표 추천 135개)
+        assert a["recommend"]["budget"] == 135 and a["diagnosis"]["coverage"]["low_cells"]
+        # 개수를 주지 않으면 추천 개수로, 분석 ID를 주지 않으면 이 대화의 최근 분석으로 고른다
+        res, sel = await call(s, "select_demos", {"session_id": "conv-1"})
         assert not res.isError
     assert sel["checks"]["verdict"] == "pass"
-    assert sel["sets"]["curated_150"]["n_demos"] == 150
+    assert sel["sets"]["curated_135"]["n_demos"] == 135 and sel["budget_basis"].startswith("추천")
+    assert sel["evidence"]["status"] == "tested"
     # LLM에 가는 응답에는 시범 ID와 숙련도 라벨이 없어야 한다
     text = json.dumps(a) + json.dumps(sel)
     assert "demo_" not in text and "better" not in text and "worse" not in text
@@ -95,7 +100,7 @@ async def test_review_selection(isolated):
         _, none = await call(s, "review_selection", {"session_id": "conv-r"})
         assert none["verdict"] == "none"
         _, a = await call(s, "analyze_data", {"session_id": "conv-r"})
-        _, sel = await call(s, "select_demos", {"analysis_run_id": a["run_id"], "session_id": "conv-r"})
+        _, sel = await call(s, "select_demos", {"analysis_run_id": a["run_id"], "budget": 150, "session_id": "conv-r"})
         _, rv = await call(s, "review_selection", {"session_id": "conv-r"})
         assert rv["verdict"] == "pass" and rv["run_id"] == sel["run_id"] and rv["issues"] == []
         assert rv["selected"] == {"n_demos": 150, "total_frames": 21833}
@@ -119,3 +124,20 @@ async def test_review_selection(isolated):
     checks = {i["check"] for i in bad["issues"]}
     assert bad["verdict"] == "revise" and {"budget", "duplicate", "allocation"} <= checks
     assert any(e.get("event") == "review" for e in events(isolated))
+
+
+async def test_suggest_and_recommend(isolated):
+    async with create_connected_server_and_client_session(srv.mcp._mcp_server) as s:
+        _, sg = await call(s, "suggest_datasets", {"goal": "캔을 집어서 통에 옮기기", "session_id": "c-s"})
+        assert sg["status"] == "ok" and sg["candidates"][0]["id"] == "can_mh"
+        _, none = await call(s, "suggest_datasets", {"goal": "청소 로봇", "session_id": "c-s"})
+        assert none["status"] == "no_match" and none["tasks"]
+        _, rb = await call(s, "recommend_budget", {"dataset": "can_mh", "budget": 100, "session_id": "c-s"})
+        assert rb["recommend"]["budget"] == 135 and rb["lookup"]["status"] == "not_tested"
+
+
+@pytest.mark.parametrize("name", ["../raw/can_mh_low_dim.hdf5", "C:/x.hdf5", "no_such.hdf5", "a.txt"])
+async def test_analyze_rejects_bad_upload_name(name):
+    async with create_connected_server_and_client_session(srv.mcp._mcp_server) as s:
+        res = await s.call_tool("analyze_data", {"file_name": name})
+    assert res.isError
