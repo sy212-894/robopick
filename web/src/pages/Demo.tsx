@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import KagglePanel from '../components/KagglePanel'
 import Markdown from '../components/Markdown'
-import { getDoc, getHealth, type Collect, type Judge } from '../lib/api'
-import { pct, pp, signed, num, SET_NAMES, useApi } from '../lib/fmt'
+import { getDoc, type Collect, type Judge } from '../lib/api'
+import { pct, pp, signed, num, SET_NAMES } from '../lib/fmt'
 import { streamSSE, type DifyEvent } from '../lib/sse'
 
-// 데모: 요청 → Dify 실행(실시간) → 승인 카드 → 승인/거부 → 보고 (+ Kaggle 학습 패널).
+// 데모: 요청 → Dify 실행(실시간) → 승인 카드 → 승인/거부 → 보고.
 // 화면의 숫자는 모두 Dify 이벤트(노드 출력)와 도구 결과에서 온다
 
 type Phase = 'idle' | 'running' | 'pending' | 'resuming' | 'done' | 'rejected' | 'error'
@@ -57,7 +56,6 @@ const STEP: Record<string, string> = {
   log_ok: '승인 기록',
   prep: '학습 계획',
   coll: '결과 불러오기',
-  launch: 'Kaggle 학습 시작',
   report: '보고 작성',
 }
 const MAIN = Object.keys(STEP)
@@ -81,8 +79,6 @@ const btnLine = 'h-10 cursor-pointer rounded-md border border-field bg-white px-
 
 export default function Demo() {
   const [query, setQuery] = useState(PRESETS[0].q)
-  // 중계 서버가 알려 주는 Kaggle 자동 학습 켜짐 여부 (안내 문구와 승인 버튼 이름이 바뀐다)
-  const launch = !!useApi(getHealth).data?.kaggle?.launch_enabled
   const [phase, setPhase] = useState<Phase>('idle')
   const [error, setError] = useState<string | null>(null)
   const [nodes, setNodes] = useState<NodeRow[]>([])
@@ -266,7 +262,7 @@ export default function Demo() {
     idle: ['요청 전', 'text-sub'],
     running: ['실행 중', 'text-accent'],
     pending: ['승인 대기', 'text-accent'],
-    resuming: [action === 'reject' ? '거부 처리 중' : '학습 계획·결과 조회·Kaggle 학습 처리 중', 'text-accent'],
+    resuming: [action === 'reject' ? '거부 처리 중' : '학습 계획·결과 조회 중', 'text-accent'],
     done: ['완료', 'text-ok'],
     rejected: ['거부됨', 'text-sub'],
     error: ['오류', 'text-danger'],
@@ -278,8 +274,7 @@ export default function Demo() {
         <div className="dot-grid mb-6 rounded-[10px] border border-line bg-white px-7 pt-7 pb-6">
           <h1 className="m-0 text-[28px] font-semibold tracking-tight">데모</h1>
           <p className="mt-1.5 text-[15px] text-[#475060]">
-            요청을 보내면 에이전트가 분석하고 선별한 뒤, 학습 계획을 승인받습니다. 승인하면 같은 계획의 결과가 있으면 불러오고, 없으면
-            {launch ? ' Kaggle GPU에서 학습을 시작합니다.' : ' 학습 계획까지 만듭니다 (지금은 Kaggle 자동 학습이 꺼져 있음).'}
+            요청을 보내면 에이전트가 분석하고 선별한 뒤, 학습 계획을 승인받습니다. 승인하면 학습 계획을 만들고, 같은 계획으로 미리 실행한 결과가 있으면 불러옵니다.
           </p>
         </div>
 
@@ -392,7 +387,7 @@ export default function Demo() {
             )}
 
             {form && (phase === 'pending' || phase === 'resuming') && (
-              <Approval review={review} form={form} busy={phase === 'resuming'} action={action} launch={launch} onDecide={decide} />
+              <Approval review={review} form={form} busy={phase === 'resuming'} action={action} onDecide={decide} />
             )}
 
             {phase === 'rejected' && (
@@ -411,10 +406,6 @@ export default function Demo() {
             )}
 
             {phase === 'done' && <Report answer={answer} collect={collect} approved={action === 'approve'} onReset={reset} />}
-
-            {phase === 'done' && action === 'approve' && convId && (
-              <KagglePanel sid={convId} />
-            )}
           </div>
 
           <aside className="flex min-w-0 flex-[1_1_300px] flex-col gap-4">
@@ -468,12 +459,11 @@ export default function Demo() {
 
 // ---------- 승인 카드: 검수 도구가 낸 묶음 구성과 학습 계획 ----------
 
-function Approval({ review, form, busy, action, launch, onDecide }: {
+function Approval({ review, form, busy, action, onDecide }: {
   review: Review | null
   form: Form
   busy: boolean
   action: 'approve' | 'reject' | null
-  launch: boolean
   onDecide: (a: 'approve' | 'reject') => void
 }) {
   const tp = review?.training_plan
@@ -555,9 +545,6 @@ function Approval({ review, form, busy, action, launch, onDecide }: {
       )}
       <p className="mt-4 text-[13px] text-sub">
         승인하면 학습 계획을 만들고, 같은 계획으로 미리 실행한 결과가 있으면 그 결과를 불러옵니다.
-        {launch
-          ? ' 결과가 없으면 Kaggle GPU에서 학습을 시작합니다 (진행은 승인 뒤 패널에서 보고 멈출 수 있음).'
-          : ' 결과가 없어도 지금은 Kaggle 자동 학습이 꺼져 있어 GPU를 쓰지 않습니다.'}
       </p>
       <div className="mt-5 flex flex-wrap gap-2">
         <button
@@ -566,7 +553,7 @@ function Approval({ review, form, busy, action, launch, onDecide }: {
           onClick={() => onDecide('approve')}
           className="h-11 cursor-pointer rounded-md bg-accent px-[22px] text-[15px] font-semibold text-white disabled:cursor-wait disabled:opacity-60"
         >
-          {busy && action === 'approve' ? '처리 중' : launch ? '승인하고 학습 시작' : '승인하고 학습 계획 만들기'}
+          {busy && action === 'approve' ? '처리 중' : '승인하고 학습 계획 만들기'}
         </button>
         <button
           type="button"
@@ -607,7 +594,7 @@ function Report({ answer, collect, approved, onReset }: { answer: string; collec
 
       {collect && collect.status === 'not_trained' && (
         <div className="mt-6 rounded-md bg-warn-soft px-4 py-3 text-[13px] text-warn-ink">
-          이 계획(지문 {collect.fingerprint})은 아직 학습 결과가 없습니다. Kaggle 학습이 끝나면 결과를 받아 등록하고, '학습 결과 보여줘'로 볼 수 있습니다.
+          이 계획(지문 {collect.fingerprint})은 아직 학습 결과가 없습니다.
         </div>
       )}
 
