@@ -133,3 +133,23 @@ async def test_judge_rejects_bad_outcomes(isolated):
         next(iter(doc["runs"].values()))["by_epoch"][final]["outcomes"] = bad
         with pytest.raises(ValueError, match="성공 1, 실패 0"):
             J.judge(doc, isolated / "runs")
+
+
+def test_same_selection_ignores_rollout_n_and_matches_seed(tmp_path):
+    # 키트 계획과 우리 실험 계획이 평가 횟수(rollout_n)만 다르면 같은 계획으로 보고, 같은 시드 결과를 시험별로 비교한다
+    base = {"dataset": {"name": "can_mh"}, "sets": {"curated_135": [3, 1, 2], "train": [1, 2, 3, 4]},
+            "config": {"num_epochs": 400, "seed": 1, "rollout_n": 50}}
+    ours = {**base, "config": {**base["config"], "rollout_n": 100}}
+    assert J._same_selection(base, ours)
+    assert not J._same_selection(base, {**ours, "sets": {"curated_135": [1, 2, 9]}})
+    assert not J._same_selection(base, {**ours, "config": {**ours["config"], "num_epochs": 600}})
+    run = tmp_path / "R-ours"
+    (run / "plan").mkdir(parents=True)
+    (run / "plan" / "plan.json").write_text(json.dumps(ours), encoding="utf-8")
+    (run / "res.json").write_text(json.dumps({"runs": {"curated_135|seed1": {"set": "curated_135", "seed": 1, "outcomes": [1, 0, 1, 1]}}}),
+                                  encoding="utf-8")
+    row = {"source": "R-ours/res.json", "experiment": "예산 135"}
+    assert J._same_selection(base, J._row_plan(row, tmp_path))
+    mine = {"k": {"set": "curated_135", "seed": 1, "outcomes": [1, 0, 1, 0], "success": 2}}
+    m = J._seed_match(mine, row, tmp_path, "400")
+    assert m == [{"set": "curated_135", "seed": 1, "yours": "2/4", "ours": "3/4", "same_trials": 3, "n": 4, "experiment": "예산 135"}]
