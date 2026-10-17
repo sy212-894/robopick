@@ -199,7 +199,7 @@ def pending_analysis(budget: int = 0, since_ts: float = 0, session_id: str | Non
 
     budget: 사용자가 요청 문장에서 말한 개수 (0이면 말하지 않음).
     since_ts: 이번 차례가 시작된 시각 (유닉스 초). 이전 차례의 분석으로 개수 확인을 다시 묻지 않게 한다.
-    반환: status "pending"(진단, 추천 개수와 이유, 기본 개수, 기본 개수의 근거) 또는 "none".
+    반환: status "pending"(진단, 추천 개수와 이유, 기본 개수, 기본 개수의 근거, 규칙 점검) 또는 "none".
     """
     _check_session(session_id)
 
@@ -223,7 +223,7 @@ def pending_analysis(budget: int = 0, since_ts: float = 0, session_id: str | Non
         return {"status": "pending", "run_id": last, "dataset": name, "n_candidates": summary["dataset"].get("n_candidates"),
                 "split_note": summary["dataset"].get("split_note"), "diagnosis": summary.get("diagnosis"),
                 "recommend": {k: rec[k] for k in ("budget", "basis", "reason")}, "requested": budget or None,
-                "default_budget": default, "lookup": E.lookup(name, default)}
+                "default_budget": default, "lookup": E.lookup(name, default), "rule_check": summary.get("rule_check")}
 
     return _traced("pending_analysis", {"budget": budget}, session_id, work)
 
