@@ -1,0 +1,349 @@
+{
+ "curated_60": {
+  "per_seed": [
+   83,
+   72,
+   62
+  ],
+  "success": 217,
+  "rollouts": 300,
+  "rate": 0.7233,
+  "early_per_seed": [
+   13,
+   22,
+   8
+  ]
+ },
+ "train": {
+  "per_seed": [
+   91,
+   68,
+   65
+  ],
+  "success": 224,
+  "rollouts": 300,
+  "rate": 0.7467,
+  "early_per_seed": [
+   null,
+   null,
+   null
+  ]
+ },
+ "rows": [
+  {
+   "baseline": "random_60",
+   "per_seed": [
+    48,
+    55,
+    51
+   ],
+   "success": 154,
+   "rollouts": 300,
+   "rate": 0.5133,
+   "early_per_seed": [
+    3,
+    3,
+    2
+   ],
+   "diff": 0.21,
+   "ci95": [
+    0.139,
+    0.281
+   ],
+   "per_seed_diff": {
+    "1": 0.35,
+    "2": 0.17,
+    "3": 0.11
+   },
+   "ci95_seed_and_position": [
+    0.0633,
+    0.3667
+   ],
+   "verdict": "차이 있음 (높음)",
+   "note": null
+  },
+  {
+   "baseline": "length_60",
+   "per_seed": [
+    27,
+    55,
+    54
+   ],
+   "success": 136,
+   "rollouts": 300,
+   "rate": 0.4533,
+   "early_per_seed": [
+    3,
+    12,
+    6
+   ],
+   "diff": 0.27,
+   "ci95": [
+    0.1992,
+    0.3408
+   ],
+   "per_seed_diff": {
+    "1": 0.56,
+    "2": 0.17,
+    "3": 0.08
+   },
+   "ci95_seed_and_position": [
+    0.0467,
+    0.55
+   ],
+   "verdict": "차이 있음 (높음)",
+   "note": null
+  },
+  {
+   "baseline": "gripper_60",
+   "per_seed": [
+    53,
+    45,
+    66
+   ],
+   "success": 164,
+   "rollouts": 300,
+   "rate": 0.5467,
+   "early_per_seed": [
+    11,
+    7,
+    13
+   ],
+   "diff": 0.1767,
+   "ci95": [
+    0.1016,
+    0.2518
+   ],
+   "per_seed_diff": {
+    "1": 0.3,
+    "2": 0.27,
+    "3": -0.04
+   },
+   "ci95_seed_and_position": [
+    -0.03,
+    0.36
+   ],
+   "verdict": "구분 불가",
+   "note": "신뢰구간은 0을 넘지만 시드마다 방향이 다름"
+  },
+  {
+   "baseline": "nolength3_60",
+   "per_seed": [
+    59,
+    52,
+    71
+   ],
+   "success": 182,
+   "rollouts": 300,
+   "rate": 0.6067,
+   "early_per_seed": [
+    9,
+    15,
+    9
+   ],
+   "diff": 0.1167,
+   "ci95": [
+    0.0418,
+    0.1915
+   ],
+   "per_seed_diff": {
+    "1": 0.24,
+    "2": 0.2,
+    "3": -0.09
+   },
+   "ci95_seed_and_position": [
+    -0.09,
+    0.2933
+   ],
+   "verdict": "구분 불가",
+   "note": "신뢰구간은 0을 넘지만 시드마다 방향이 다름"
+  },
+  {
+   "baseline": "idle_60",
+   "per_seed": [
+    59,
+    65,
+    66
+   ],
+   "success": 190,
+   "rollouts": 300,
+   "rate": 0.6333,
+   "early_per_seed": [
+    9,
+    13,
+    7
+   ],
+   "diff": 0.09,
+   "ci95": [
+    0.0152,
+    0.1648
+   ],
+   "per_seed_diff": {
+    "1": 0.24,
+    "2": 0.07,
+    "3": -0.04
+   },
+   "ci95_seed_and_position": [
+    -0.0733,
+    0.26
+   ],
+   "verdict": "구분 불가",
+   "note": "신뢰구간은 0을 넘지만 시드마다 방향이 다름"
+  },
+  {
+   "baseline": "path_60",
+   "per_seed": [
+    49,
+    44,
+    41
+   ],
+   "success": 134,
+   "rollouts": 300,
+   "rate": 0.4467,
+   "early_per_seed": [
+    4,
+    8,
+    5
+   ],
+   "diff": 0.2767,
+   "ci95": [
+    0.2032,
+    0.3501
+   ],
+   "per_seed_diff": {
+    "1": 0.34,
+    "2": 0.28,
+    "3": 0.21
+   },
+   "ci95_seed_and_position": [
+    0.1533,
+    0.4
+   ],
+   "verdict": "차이 있음 (높음)",
+   "note": null
+  },
+  {
+   "baseline": "stratified_random_60",
+   "per_seed": [
+    51,
+    32,
+    48
+   ],
+   "success": 131,
+   "rollouts": 300,
+   "rate": 0.4367,
+   "early_per_seed": [
+    2,
+    4,
+    1
+   ],
+   "diff": 0.2867,
+   "ci95": [
+    0.2111,
+    0.3622
+   ],
+   "per_seed_diff": {
+    "1": 0.32,
+    "2": 0.4,
+    "3": 0.14
+   },
+   "ci95_seed_and_position": [
+    0.12,
+    0.4433
+   ],
+   "verdict": "차이 있음 (높음)",
+   "note": null
+  },
+  {
+   "baseline": "diversity_60",
+   "per_seed": [
+    30,
+    37,
+    57
+   ],
+   "success": 124,
+   "rollouts": 300,
+   "rate": 0.4133,
+   "early_per_seed": [
+    2,
+    3,
+    15
+   ],
+   "diff": 0.31,
+   "ci95": [
+    0.2353,
+    0.3847
+   ],
+   "per_seed_diff": {
+    "1": 0.53,
+    "2": 0.35,
+    "3": 0.05
+   },
+   "ci95_seed_and_position": [
+    0.06,
+    0.54
+   ],
+   "verdict": "차이 있음 (높음)",
+   "note": null
+  },
+  {
+   "baseline": "longest_60",
+   "per_seed": [
+    27,
+    34,
+    23
+   ],
+   "success": 84,
+   "rollouts": 300,
+   "rate": 0.28,
+   "early_per_seed": [
+    0,
+    0,
+    3
+   ],
+   "diff": 0.4433,
+   "ci95": [
+    0.3747,
+    0.512
+   ],
+   "per_seed_diff": {
+    "1": 0.56,
+    "2": 0.38,
+    "3": 0.39
+   },
+   "ci95_seed_and_position": [
+    0.3167,
+    0.5733
+   ],
+   "verdict": "차이 있음 (높음)",
+   "note": null
+  }
+ ],
+ "drop_vs_full": {
+  "diff": 0.0233,
+  "ci95": [
+   -0.0424,
+   0.089
+  ],
+  "verdict": "구분 불가",
+  "n_pairs": 300,
+  "n_seeds": 3,
+  "per_seed_diff": {
+   "1": 0.08,
+   "2": -0.04,
+   "3": 0.03
+  },
+  "pairs": {
+   "a_only": 54,
+   "b_only": 47,
+   "both": 170,
+   "neither": 29
+  },
+  "confirmed": false,
+  "ci95_seed_and_position": [
+   -0.09,
+   0.12
+  ]
+ },
+ "all_baselines_beaten": false
+}
