@@ -11,12 +11,23 @@
 """
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
 
 import httpx
 
 WEB_USER = "web-demo"
+RESUBSCRIBE = 5  # 승인 뒤 이어지는 흐름 구독 최대 횟수
+END_EVENTS = {"workflow_finished", "workflow_paused", "error"}
+
+
+def _event_key(e: dict) -> str:
+    """같은 이벤트를 두 번 보내지 않으려고 쓰는 키. 노드 이벤트는 실행 ID로, 나머지는 내용 전체로."""
+    d = e.get("data") or {}
+    if e.get("event", "").startswith("node_") or e.get("event") == "workflow_started":
+        return f"{e.get('event')}:{d.get('id')}:{d.get('status')}"
+    return json.dumps(e, sort_keys=True, ensure_ascii=False)
 
 
 def _headers(key: str) -> dict[str, str]:
@@ -76,13 +87,34 @@ async def approve_stream(base: str, key: str, form_token: str, action: str, work
             return
         yield sse({"event": "form_submitted", "action": action})
         params = {"user": WEB_USER, "include_state_snapshot": "true"}
-        async with c.stream("GET", f"{base}/workflow/{workflow_run_id}/events", headers=_headers(key), params=params) as s:
-            if s.status_code != 200:
-                yield sse({"event": "error", "status": s.status_code, "message": (await s.aread()).decode("utf-8", "replace")[:500]})
-            else:
+        # 제출 직후에 구독하면 실행이 아직 재개되지 않아 멈춤 상태만 받고 닫히는 때가 있다 (2026-10-17 실제 대화에서 1번 확인).
+        # 끝 이벤트를 받을 때까지 1초 뒤 다시 구독하고, 이미 보낸 이벤트는 다시 보내지 않는다
+        sent: set[str] = set()
+        finished_answer = None
+        for attempt in range(RESUBSCRIBE):
+            if attempt:
+                await asyncio.sleep(1)
+            done = False
+            async with c.stream("GET", f"{base}/workflow/{workflow_run_id}/events", headers=_headers(key), params=params) as s:
+                if s.status_code != 200:
+                    yield sse({"event": "error", "status": s.status_code, "message": (await s.aread()).decode("utf-8", "replace")[:500]})
+                    break
                 async for ev in _relay(s):
+                    e = json.loads(ev[5:])
+                    k = _event_key(e)
+                    if k in sent:
+                        continue
+                    sent.add(k)
+                    done = done or e.get("event") in END_EVENTS
+                    if e.get("event") == "workflow_finished":
+                        finished_answer = ((e.get("data") or {}).get("outputs") or {}).get("answer")
                     yield ev
+            if done:
+                break
     if conversation_id:
         m = await final_message(base, key, conversation_id)
+        # 끝나자마자 메시지를 읽으면 저장 전의 답(승인 전 내용)이 올 때가 있다. 끝 이벤트에 든 최종 답을 우선 쓴다
+        if finished_answer:
+            m = {**(m or {"message_id": None, "status": "normal", "usage": None, "retriever_resources": []}), "answer": finished_answer}
         if m:
             yield sse({"event": "final_message", **m})

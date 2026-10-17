@@ -8,6 +8,7 @@ import pytest
 from starlette.testclient import TestClient
 
 from webapi import app as A
+from webapi import dify as D
 from webapi.config import Settings
 
 REAL_RUNS = Path("C:/curation-data/runs")
@@ -114,6 +115,39 @@ def test_approve_submits_then_streams_and_final(tmp_path, monkeypatch):
     assert [e["event"] for e in evs] == ["form_submitted", "message", "workflow_finished", "final_message"]
     assert evs[-1]["answer"] == "전체 답변" and evs[-1]["usage"]["total_price"] == "0.0014"
     assert calls[1][2]["include_state_snapshot"] == "true"  # 제출과 구독 사이 이벤트를 놓치지 않게
+
+
+def test_approve_resubscribes_until_finished(tmp_path, monkeypatch):
+    # 첫 구독은 재개 전이라 멈춤 이전 상태만 받고 닫힘 → 다시 구독해 끝까지 받는다. 이미 보낸 노드 이벤트는 다시 보내지 않는다
+    monkeypatch.setattr(A, "settings", _settings(tmp_path, key="app-test"))
+    monkeypatch.setattr(D.asyncio, "sleep", lambda s: _noop())
+    n = {"events": 0}
+    old = 'data: {"event": "node_finished", "data": {"id": "e1", "status": "succeeded"}}\n\n'
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        if req.url.path.endswith("/form/human_input/tok"):
+            return httpx.Response(200, json={})
+        if req.url.path.endswith("/workflow/w1/events"):
+            n["events"] += 1
+            if n["events"] == 1:
+                return httpx.Response(200, text=old)
+            return httpx.Response(200, text=old + 'data: {"event": "node_finished", "data": {"id": "e2", "status": "succeeded"}}\n\n'
+                                             'data: {"event": "workflow_finished", "data": {"outputs": {"answer": "최종 답"}}}\n\n')
+        if req.url.path.endswith("/messages"):
+            return httpx.Response(200, json={"data": [{"id": "m1", "answer": "끝", "status": "normal"}]})
+        return httpx.Response(404)
+
+    _mock_dify(monkeypatch, handler)
+    r = TestClient(A.app).post("/api/approve", json={"form_token": "tok", "action": "select", "workflow_run_id": "w1",
+                                                     "conversation_id": "c1", "inputs": {"budget": "120"}})
+    evs = _sse_events(r.text)
+    assert n["events"] == 2
+    assert [e["event"] for e in evs] == ["form_submitted", "node_finished", "node_finished", "workflow_finished", "final_message"]
+    assert evs[-1]["answer"] == "최종 답"  # 저장 전 메시지("끝") 대신 끝 이벤트의 답
+
+
+async def _noop():
+    return None
 
 
 def test_approve_rejects_bad_action(tmp_path, monkeypatch):

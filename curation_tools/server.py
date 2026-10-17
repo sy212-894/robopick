@@ -251,12 +251,13 @@ def select_demos(analysis_run_id: str | None = None, budget: int = 0, seed: int 
     summary = json.loads((analysis_path.parent / "analysis_summary.json").read_text(encoding="utf-8"))
     name = summary["dataset"]["name"]
     n_cand = summary["dataset"].get("n_candidates") or 270
-    basis = "요청"
+    rec = E.recommend(name)
+    # 개수 확인 카드는 추천 개수를 기본값으로 넣는다. 그대로 확정하면 요청이 아니라 추천으로 표기한다
+    basis = "추천 (근거표)" if budget and budget == rec["budget"] else "요청"
     if not budget:
-        rec = E.recommend(name)
         budget, basis = (rec["budget"], "추천 (근거표)") if rec["budget"] else (S.DEFAULT_BUDGET, "기본값 (근거 없음)")
     if not 10 <= budget <= n_cand:
-        raise ValueError(f"budget은 10~{n_cand} 사이여야 한다 (선별 후보 {n_cand}개)")
+        raise ValueError(f"고를 개수는 10~{n_cand} 사이여야 합니다 (입력 {budget}개, 선별 후보 {n_cand}개)")
 
     def work() -> dict:
         out = S.run(analysis_path, out_root=RUNS_ROOT, budget=budget, seed=seed, run_id=_new_run_id("select"))
