@@ -1,10 +1,21 @@
 import type { ReactNode } from 'react'
 
-// 에이전트 보고에 나오는 정도의 마크다운만 그린다: 제목, 문단, 목록, 표, 구분선, 굵게, 코드.
+// 에이전트 보고에 나오는 정도의 마크다운만 그린다: 제목, 문단, 목록, 표, 구분선, 굵게, 코드, 링크.
 // HTML로 넣지 않고 React 요소로 만들어서 답변에 태그가 섞여도 그대로 글자로 보인다
+// 링크는 이 서버의 /api/ 주소(학습 키트 내려받기)와 http(s) 주소만 연다. 그 밖의 주소는 글자로 둔다
+
+const LINK = /^\[([^\]]+)\]\(([^)\s]+)\)$/
+const safeHref = (u: string) => u.startsWith('/api/') || /^https?:\/\//.test(u)
 
 function inline(text: string): ReactNode[] {
-  return text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((p, i) => {
+  return text.split(/(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)\s]+\))/g).map((p, i) => {
+    const m = LINK.exec(p)
+    if (m && safeHref(m[2]))
+      return (
+        <a key={i} href={m[2]} {...(m[2].startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+          {m[1]}
+        </a>
+      )
     if (p.startsWith('**') && p.endsWith('**') && p.length > 4) return <strong key={i}>{p.slice(2, -2)}</strong>
     if (p.startsWith('`') && p.endsWith('`') && p.length > 2)
       return (

@@ -75,12 +75,12 @@ def judge(doc: dict, runs_root: Path) -> dict:
         n_seeds = len({r["seed"] for r in runs.values()})
         out.update(kind="effect", title="선별 효과 판정", label=rep["label"],
                    gain_vs_random=rep.get("gain_vs_random"), drop_vs_full=rep.get("drop_vs_full"),
-                   note=("학습 시드 1개라, 시드마다 같은 방향인지는 볼 수 없다. 우리 실험(시드 3~5개)보다 약한 근거다"
+                   note=("학습 시드 1개라 시드마다 같은 방향인지는 볼 수 없습니다. 우리 실험(시드 3~5개)보다 약한 근거입니다"
                          if n_seeds == 1 else None),
                    missing=[r for r in ("random", "train") if not roles[r]])
     else:
         out.update(kind="check", title="결과 확인",
-                   note="선별 묶음만 학습한 결과라 선별 효과를 판정하지 않는다. 학습이 제대로 돌았는지 점검하는 수준이다")
+                   note="선별 묶음만 학습한 결과라 선별 효과를 판정하지 않습니다. 학습이 제대로 돌았는지 점검하는 수준입니다")
     ev = E.lookup(plan["dataset"]["name"], budget) if budget else {"status": "no_evidence", "rows": []}
     same = [r for r in ev["rows"] if r.get("source", "").startswith(plan["run_id"] + "/") or r.get("source") == plan["run_id"]]
     out["evidence"] = {"status": ev["status"], "same_plan": bool(same),

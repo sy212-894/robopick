@@ -128,3 +128,31 @@ export type CheckResult = { verdict: 'pass' | 'check' | 'no_runs'; numbers?: num
 export const postCheck = (sid: string) => postJSON<CheckResult>(`/api/check/${sid}`, {})
 export const getDoc =(file: string) => getJSON<Doc>(`/api/docs/${encodeURIComponent(file)}`)
 
+
+// 학습 결과 판정 (MVP 14). 사용자가 학습 키트로 학습한 결과 파일(results_main_<지문>.json)을 올리면 판정한다
+export type Rate = { set: string; success: number; rollouts: number; rate: number; ci95: [number, number]; seeds?: number[] }
+export type Judgement = {
+  kind: 'effect' | 'check'
+  title: string
+  dataset: string
+  budget: number
+  epoch: number
+  platform?: string | null
+  rates: Partial<Record<'curated' | 'random' | 'train', Rate>>
+  gain_vs_random?: Judge
+  drop_vs_full?: Judge & { confirmed?: boolean }
+  missing?: string[]
+  note?: string | null
+  label?: string
+  evidence?: {
+    status: string
+    same_plan: boolean
+    rows: { dataset: string; budget: number; experiment: string; rates: Partial<Record<'curated' | 'random' | 'train', Rate>> }[]
+  }
+}
+export async function postResult(sid: string, text: string): Promise<Judgement> {
+  const r = await fetch(`/api/results/${sid}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: text })
+  const j = await r.json()
+  if (!r.ok) throw new Error(j?.detail ?? `업로드 실패 ${r.status}`)
+  return j as Judgement
+}

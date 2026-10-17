@@ -423,7 +423,7 @@ def judge_results(file_name: str | None = None, session_id: str | None = None) -
             return res
         last = _latest_in_session(session_id, "judged", "judgement_path") if session_id else None
         if not last:
-            return {"status": "no_result", "detail": "이 대화에서 올린 학습 결과가 없다. 학습 키트로 학습한 뒤 결과 파일을 올린다"}
+            return {"status": "no_result", "detail": "이 대화에서 올린 학습 결과가 없습니다. 학습 키트로 학습한 뒤 결과 파일을 웹 화면에 올리면 판정합니다"}
         return json.loads(Path(last).read_text(encoding="utf-8"))
 
     return _traced("judge_results", {"file_name": file_name}, session_id, work)
