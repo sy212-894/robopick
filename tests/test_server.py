@@ -160,3 +160,12 @@ async def test_pending_analysis(isolated):
         await call(s, "select_demos", {"budget": 135, "session_id": "p"})
         _, done = await call(s, "pending_analysis", {"since_ts": t0, "session_id": "p"})
         assert done["status"] == "none"               # 이미 골랐다
+
+
+def test_suggest_named_data_goes_to_analysis():
+    """데이터 이름이나 올린 파일 이름을 말하면 후보를 고르지 않고 분석하라고 돌려준다 (한글 조사가 붙어도)."""
+    from curation_tools.suggest import suggest
+    assert suggest("lift_mh로 골라줘")["dataset"] == "lift_mh"
+    assert suggest("내 파일 my_data.hdf5에서 골라줘")["file_name"] == "my_data.hdf5"
+    assert suggest("transport_mh로 골라줘")["status"] == "named"
+    assert suggest("캔을 집어 옮기기 학습")["status"] == "ok"

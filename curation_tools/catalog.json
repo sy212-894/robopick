@@ -58,7 +58,7 @@
     "grasp"
    ],
    "summary": "탁자 위 큐브를 집어 일정 높이 위로 들어 올리기. 큐브 위치는 무작위",
-   "support": "untested",
+   "support": "tested",
    "verify": false,
    "hf_path": "v1.5/lift/mh/low_dim_v15.hdf5",
    "summary_source": "지식베이스 01·04"
@@ -308,7 +308,7 @@
   }
  ],
  "support_note": {
-  "tested": "분석·선별을 실제로 해 봤다",
+  "tested": "분석·선별을 실제로 해 봤다 (can_mh, square_mh, lift_mh 10/17)",
   "untested": "같은 robomimic 형식이라 분석·선별이 될 것으로 보지만 아직 해 보지 않았다",
   "unsupported": "두 팔 작업이거나 물체 위치로 조건을 나누는 방식이 맞지 않아 지금 분석 도구로는 다루지 않는다"
  }

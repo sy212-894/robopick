@@ -27,7 +27,7 @@ import numpy as np
 DEFAULT_OUT_ROOT = Path("C:/curation-data/runs")
 QUALITY_LEVELS = ("worse", "okay", "better")
 QUALITY_SIGNALS = ("path_length", "action_roughness", "idle_ratio", "gripper_switches")
-OBJECT_LABEL = {"PickPlaceCan": "캔", "NutAssemblySquare": "너트"}  # 환경 이름 → 그림·설명에 쓸 물체 이름
+OBJECT_LABEL = {"PickPlaceCan": "캔", "NutAssemblySquare": "너트", "Lift": "큐브"}  # 환경 이름 → 그림·설명에 쓸 물체 이름
 DUP_THRESHOLD_M = 0.02  # 궤적 20점 평균 거리 2cm 미만 = 거의 같은 시범 (Can·Square 학습 후보에는 0쌍, 가장 가까운 쌍 약 3cm)
 PATH_POINTS = 20
 IDLE_THRESHOLD_M = 0.001  # 한 프레임(1/20초) 동안 팔 끝 이동이 1mm 미만이면 정지로 본다 (= 2cm/s 미만)

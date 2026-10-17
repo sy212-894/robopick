@@ -16,6 +16,7 @@ API
   GET  /api/docs, /api/docs/{파일}   근거 문서 목록, 원문 링크와 전체 내용
   GET  /api/kit/{실행ID}/{파일}       학습 키트 파일 내려받기 (노트북 2종, 학습 설정, 사용법, 고른 데이터 파일)
   POST /api/results/{대화ID}         학습 결과 파일(JSON 본문)을 올려 판정 (선별 효과 판정 또는 결과 확인)
+  POST /api/data?name=<파일>.hdf5     사용자 시범 데이터 올리기 (robomimic hdf5, 2GB 이하) → 도구가 쓸 파일 이름
 """
 from __future__ import annotations
 
@@ -224,6 +225,44 @@ async def upload_result(request: Request) -> JSONResponse:
     return JSONResponse(res)
 
 
+DATA_NAME_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z_.-]{0,80}\.hdf5$")
+MAX_DATA_BYTES = 2 * 1024 ** 3
+HDF5_MAGIC = b"\x89HDF\r\n\x1a\n"
+
+
+async def upload_data(request: Request) -> JSONResponse:
+    """사용자 시범 데이터(robomimic hdf5) 올리기. 본문은 파일 그대로, 이름은 ?name=. 도구 서버의 analyze_data가 이 이름으로 읽는다."""
+    import h5py
+    name = request.query_params.get("name", "")
+    if not DATA_NAME_RE.match(name):
+        return JSONResponse({"detail": "파일 이름은 영문·숫자·_.- 로 된 .hdf5만 받습니다"}, status_code=400)
+    root = settings.upload_root
+    root.mkdir(parents=True, exist_ok=True)
+    stem, path, k = name[:-5], root / name, 1
+    while path.exists():  # 같은 이름이 있으면 번호를 붙인다 (덮어쓰지 않음)
+        path, k = root / f"{stem}_{k}.hdf5", k + 1
+    size, head = 0, b""
+    try:
+        with open(path, "wb") as f:
+            async for chunk in request.stream():
+                size += len(chunk)
+                if size > MAX_DATA_BYTES:
+                    raise ValueError("파일이 너무 큽니다 (2GB 이하)")
+                if len(head) < 8:
+                    head += chunk[:8]
+                    if len(head) >= 8 and head[:8] != HDF5_MAGIC:
+                        raise ValueError("HDF5 파일이 아닙니다")
+                f.write(chunk)
+        with h5py.File(path, "r") as h:
+            if "data" not in h or not len(h["data"]):
+                raise ValueError("robomimic 형식이 아닙니다 (data 그룹에 시범이 없음)")
+            n = len(h["data"])
+    except (ValueError, OSError) as e:
+        path.unlink(missing_ok=True)
+        return JSONResponse({"detail": str(e)}, status_code=400)
+    return JSONResponse({"file_name": path.name, "size_mb": round(size / 1e6, 1), "n_demos": n})
+
+
 async def spa(request: Request):
     """빌드한 화면이 있으면 그 index.html을 돌려준다 (새로고침해도 /demo 같은 주소가 열리게)."""
     if request.url.path.startswith("/api/"):
@@ -248,6 +287,7 @@ routes = [
     Route("/api/docs/{name}", doc),
     Route("/api/kit/{run_id}/{name}", kit_file),
     Route("/api/results/{sid}", upload_result, methods=["POST"]),
+    Route("/api/data", upload_data, methods=["POST"]),
 ]
 app = Starlette(routes=routes)
 if (settings.web_dist / "assets").exists():
