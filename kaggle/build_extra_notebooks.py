@@ -73,3 +73,10 @@ build("06_b60_round1", "예산 60 기준선 비교 1차", "R-20261013-select-b60
 build("07_b60_round2", "예산 60 기준선 비교 2차", "R-20261013-select-b60", "b60",
       [(n, s) for s in (1, 2, 3) for n in ("nolength3_60", "idle_60", "path_60", "stratified_random_60", "diversity_60", "longest_60")],
       "- 예산 60 계획의 2차 6묶음. 1차와 같은 계획이고 묶음은 1차 결과를 보기 전에 정했다\n" + COMMON)
+# 2차를 실제로 돌릴 때(10/17)는 18개를 한 노트북에서 돌리면 약 7시간이라, 묶음 3개씩 두 노트북으로 나눠 동시에 돌린다.
+# 묶음·시드·평가는 07과 같다 (실행 목록만 나눔)
+for part, names in (("a", ("nolength3_60", "idle_60", "path_60")),
+                    ("b", ("stratified_random_60", "diversity_60", "longest_60"))):
+    build(f"07{part}_b60_round2", f"예산 60 기준선 비교 2차 ({part})", "R-20261013-select-b60", f"b60{part}",
+          [(n, s) for s in (1, 2, 3) for n in names],
+          f"- 07_b60_round2의 실행 목록을 둘로 나눈 것 ({part}: {', '.join(names)}). 묶음·시드·평가는 같다\n" + COMMON)
