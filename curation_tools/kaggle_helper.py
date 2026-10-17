@@ -66,6 +66,7 @@ def logs(a: dict) -> dict:
         # 서버는 로그 주소를 최대 20초 기다린 뒤 응답하고, 새 출력이 없으면 한동안 아무것도 보내지 않는다
         resp = hc._session.send(req, stream=True, timeout=(10, 30))
         kind = resp.headers.get("content-type", "")
+        resp.encoding = "utf-8"  # 서버가 charset을 안 붙여서 requests가 latin-1로 읽으면 한글 로그가 깨진다
         t0 = time.time()
         try:
             if "event-stream" in kind:

@@ -1,7 +1,9 @@
-"""curation-tools MCP 서버: analyze_data, select_demos, review_selection, train_evaluate, log_event를 Dify 같은 MCP 클라이언트에 도구로 제공한다.
+"""curation-tools MCP 서버: suggest_datasets, analyze_data, recommend_budget, select_demos, review_selection,
+train_evaluate, log_event를 Dify 같은 MCP 클라이언트에 도구로 제공한다.
 
 - 주소: http://127.0.0.1:8800/mcp (Dify 컨테이너에서는 http://host.docker.internal:8800/mcp)
-- 도구 인자는 LLM이 정하므로 파일 경로를 직접 받지 않는다. 데이터는 이름(DATASETS)으로만 고르고,
+- 도구 인자는 LLM이 정하므로 파일 경로를 직접 받지 않는다. 데이터는 이름(DATASETS, 목록에 있고 내려받은 파일)으로 고르거나
+  사용자가 올린 파일은 UPLOAD_ROOT 안의 파일 이름으로만 고른다.
   run_id는 형식을 검사한 뒤 RUNS_ROOT 바로 아래 폴더만 읽는다.
 - LLM에는 요약본만 돌려준다 (시범 ID 목록, 숙련도 라벨 제외).
 - 모든 도구 호출은 자동으로 EVENTS_PATH에 기록된다 (시작, 끝, 걸린 시간, 인자, 성공 여부).
@@ -23,14 +25,18 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
 from curation_tools import analyze as A
+from curation_tools import evidence as E
 from curation_tools import kaggle_runner as KR
 from curation_tools import review as R
 from curation_tools import select_demos as S
+from curation_tools import suggest as SG
 from curation_tools import train_eval as T
 
 HOST, PORT = "127.0.0.1", 8800
-DATASETS = {"can_mh": Path("C:/curation-data/raw/can_mh_low_dim.hdf5"),
-            "square_mh": Path("C:/curation-data/raw/square_mh_low_dim.hdf5")}
+RAW_ROOT = Path("C:/curation-data/raw")
+UPLOAD_ROOT = Path("C:/curation-data/uploads")  # 웹에서 올린 사용자 파일
+UPLOAD_NAME_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z_.-]{0,100}\.hdf5$")
+DATASETS = {"can_mh": RAW_ROOT / "can_mh_low_dim.hdf5", "square_mh": RAW_ROOT / "square_mh_low_dim.hdf5"}
 RUNS_ROOT = A.DEFAULT_OUT_ROOT
 EVENTS_PATH = Path("C:/curation-data/logs/events.jsonl")
 RUN_ID_RE = re.compile(r"^R-[0-9A-Za-z_-]{1,60}$")
@@ -44,6 +50,25 @@ security = TransportSecuritySettings(
     allowed_origins=["http://127.0.0.1:*", "http://localhost:*", "http://host.docker.internal:*"],
 )
 mcp = FastMCP("curation-tools", host=HOST, port=PORT, transport_security=security)
+
+
+def _datasets() -> dict[str, Path]:
+    """분석할 수 있는 데이터: 기본 2개 + 목록(catalog)에 있고 내려받아 둔 파일."""
+    out = dict(DATASETS)
+    for d in SG.load_catalog()["datasets"]:
+        f = RAW_ROOT / f"{d['id']}_low_dim.hdf5"
+        if d["support"] != "unsupported" and f.exists():
+            out.setdefault(d["id"], f)
+    return out
+
+
+def _upload_path(file_name: str) -> Path:
+    if not UPLOAD_NAME_RE.match(file_name):
+        raise ValueError("file_name은 올린 파일의 이름(영문·숫자·_.-, .hdf5)만 받는다")
+    path = (UPLOAD_ROOT / file_name).resolve()
+    if path.parent != UPLOAD_ROOT.resolve() or not path.is_file():
+        raise ValueError(f"올린 파일을 찾을 수 없음: {file_name}")
+    return path
 
 
 def _now() -> str:
@@ -94,53 +119,125 @@ def _traced(tool: str, args: dict, session_id: str | None, fn: Callable[[], dict
 
 
 @mcp.tool()
-def analyze_data(dataset: str = "can_mh", grid: int = 3, session_id: str | None = None) -> dict[str, Any]:
-    """시범 데이터셋을 분석해 작업 조건(물체 초기 위치 grid x grid 칸)별 시범 수·평균 길이·총 프레임을 요약한다.
+def analyze_data(dataset: str = "can_mh", grid: int = 3, file_name: str | None = None,
+                 session_id: str | None = None) -> dict[str, Any]:
+    """시범 데이터셋을 분석하고 선별 전 진단을 한다. 선별(select_demos)은 사람이 진단을 보고 개수를 정한 뒤에 한다.
 
     dataset: 데이터셋 이름. "can_mh"(robomimic Can: 캔 옮기기, Multi-Human 300개) 또는
              "square_mh"(robomimic Square: 너트를 기둥에 끼우기, Multi-Human 300개, 더 어려움).
+             suggest_datasets 목록에 있고 내려받아 둔 데이터 이름도 받는다.
     grid: 조건 격자 크기 (2~5, 기본 3).
+    file_name: 사용자가 웹에서 올린 robomimic hdf5 파일 이름 (선택). 주면 dataset 대신 이 파일을 분석한다.
     session_id: 같은 대화의 호출을 묶는 ID (선택). Dify에서는 대화 ID를 넣는다.
-    반환: run_id(다음 도구 select_demos에 넘긴다), 조건별 통계, 품질 신호 이름. 시범 목록과 숙련도 라벨은 포함하지 않는다.
+    반환: run_id, 조건별 통계, 진단(diagnosis: 위치 편중과 부족한 칸, 수집 계획, 거의 같은 시범 쌍), 추천 개수(recommend).
+    시범 목록과 숙련도 라벨은 포함하지 않는다.
     """
     _check_session(session_id)
-    if dataset not in DATASETS:
-        raise ValueError(f"알 수 없는 dataset: {dataset!r}. 사용 가능: {sorted(DATASETS)}")
+    if file_name:
+        path = _upload_path(file_name)
+    else:
+        known = _datasets()
+        if dataset not in known:
+            raise ValueError(f"알 수 없는 dataset: {dataset!r}. 사용 가능: {sorted(known)}")
+        path = known[dataset]
     if not 2 <= grid <= 5:
         raise ValueError("grid는 2~5 사이여야 한다")
 
     def work() -> dict:
-        out = A.run(DATASETS[dataset], out_root=RUNS_ROOT, grid=grid, run_id=_new_run_id("analyze"))
-        return json.loads((out / "analysis_summary.json").read_text(encoding="utf-8"))
+        out = A.run(path, out_root=RUNS_ROOT, grid=grid, run_id=_new_run_id("analyze"))
+        summary = json.loads((out / "analysis_summary.json").read_text(encoding="utf-8"))
+        rec = E.recommend(summary["dataset"]["name"])
+        summary["recommend"] = {k: rec[k] for k in ("budget", "basis", "reason")}
+        return summary
 
-    return _traced("analyze_data", {"dataset": dataset, "grid": grid}, session_id, work)
+    return _traced("analyze_data", {"dataset": dataset, "grid": grid, "file_name": file_name}, session_id, work)
 
 
 @mcp.tool()
-def select_demos(analysis_run_id: str, budget: int = S.DEFAULT_BUDGET, seed: int = 0,
+def suggest_datasets(goal: str, session_id: str | None = None) -> dict[str, Any]:
+    """학습 목적 문장으로 robomimic 데이터셋 후보를 고른다 (사용자에게 데이터가 없을 때).
+
+    goal: 사용자가 말한 학습 목적 (예: "캔을 집어 통에 옮기기를 학습시키고 싶어").
+    반환: 후보(작업, 데이터 종류, 시범 수, 이 에이전트에서 가능한 일 support/verify, 고른 이유)와 출처 URL.
+    맞는 작업이 없으면 status no_match와 고를 수 있는 작업 목록을 돌려준다. 후보를 지어내지 않는다.
+    """
+    _check_session(session_id)
+    if not goal or len(goal) > 500:
+        raise ValueError("goal은 1~500자")
+    return _traced("suggest_datasets", {"goal": goal}, session_id, lambda: SG.suggest(goal))
+
+
+@mcp.tool()
+def recommend_budget(dataset: str, budget: int | None = None, session_id: str | None = None) -> dict[str, Any]:
+    """학습 실험 근거표에서 몇 개를 고르면 되는지 추천하고, 요청한 개수의 근거를 찾는다.
+
+    dataset: 데이터셋 이름 (예: "can_mh").
+    budget: 사용자가 말한 개수 (선택). 주면 그 개수가 실험으로 확인됐는지, 아니면 가장 가까운 실험 결과를 돌려준다.
+    반환: recommend(추천 개수와 이유), rule(추천 규칙), lookup(status tested/not_tested/no_evidence와 근거 행).
+    """
+    _check_session(session_id)
+
+    def work() -> dict:
+        doc = E.load()
+        out = {"rule": doc["rule"], "recommend": E.recommend(dataset, doc)}
+        if budget:
+            out["lookup"] = E.lookup(dataset, budget, doc)
+        return out
+
+    return _traced("recommend_budget", {"dataset": dataset, "budget": budget}, session_id, work)
+
+
+@mcp.tool()
+def select_demos(analysis_run_id: str | None = None, budget: int = 0, seed: int = 0,
                  session_id: str | None = None) -> dict[str, Any]:
     """analyze_data 결과를 바탕으로 학습에 쓸 시범을 예산만큼 고르고, 비교용 무작위 기준선을 함께 만든다.
+    고른 결과는 필터 키를 넣은 hdf5 복사본으로 저장되어 사용자가 바로 학습에 쓸 수 있다.
 
-    analysis_run_id: analyze_data가 돌려준 run_id.
-    budget: 고를 시범 수 (10~270, 기본 150). 후보는 train 분할 270개다.
+    analysis_run_id: analyze_data가 돌려준 run_id (선택). 없으면 이 대화의 가장 최근 분석을 쓴다.
+    budget: 고를 시범 수 (10~후보 수). 0이면 근거표의 추천 개수 (추천이 없으면 150).
     seed: 무작위 기준선의 난수 시작값.
     session_id: 같은 대화의 호출을 묶는 ID (선택).
     반환: run_id, 조건별 배분(planned/selected/shortage), 묶음별 시범 수·총 프레임, 규칙 검사 결과(checks.verdict가 pass인지 확인),
     학습용 필터 키 이름. 시범 ID 목록과 숙련도 라벨은 포함하지 않는다.
     """
     _check_session(session_id)
-    if not 10 <= budget <= 270:
-        raise ValueError("budget은 10~270 사이여야 한다")
+    analysis_run_id = analysis_run_id or (session_id and _latest_tool_run(session_id, "analyze_data"))
+    if not analysis_run_id:
+        raise ValueError("분석 결과가 없다. 먼저 analyze_data")
     analysis_path = _run_dir(analysis_run_id) / "analysis.json"
     if not analysis_path.exists():
         raise ValueError(f"{analysis_run_id}는 analyze_data 결과가 아니다")
+    summary = json.loads((analysis_path.parent / "analysis_summary.json").read_text(encoding="utf-8"))
+    name = summary["dataset"]["name"]
+    n_cand = summary["dataset"].get("n_candidates") or 270
+    basis = "요청"
+    if not budget:
+        rec = E.recommend(name)
+        budget, basis = (rec["budget"], "추천 (근거표)") if rec["budget"] else (S.DEFAULT_BUDGET, "기본값 (근거 없음)")
+    if not 10 <= budget <= n_cand:
+        raise ValueError(f"budget은 10~{n_cand} 사이여야 한다 (선별 후보 {n_cand}개)")
 
     def work() -> dict:
         out = S.run(analysis_path, out_root=RUNS_ROOT, budget=budget, seed=seed, run_id=_new_run_id("select"))
-        return json.loads((out / "selection_summary.json").read_text(encoding="utf-8"))
+        res = json.loads((out / "selection_summary.json").read_text(encoding="utf-8"))
+        res["budget_basis"] = basis
+        res["evidence"] = E.lookup(name, budget)
+        return res
 
     args = {"analysis_run_id": analysis_run_id, "budget": budget, "seed": seed}
     return _traced("select_demos", args, session_id, work)
+
+
+def _latest_tool_run(session_id: str, tool: str) -> str | None:
+    """이 대화에서 도구가 마지막으로 만든 run_id."""
+    if not EVENTS_PATH.exists():
+        return None
+    found = None
+    for line in EVENTS_PATH.read_text(encoding="utf-8").splitlines():
+        e = json.loads(line)
+        if e.get("session_id") == session_id and e.get("tool") == tool and e.get("event") == "tool_end" and e.get("run_id"):
+            found = e["run_id"]
+    return found
 
 
 def _unreviewed_select(session_id: str) -> str | None:
