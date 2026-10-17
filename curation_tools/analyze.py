@@ -226,6 +226,7 @@ def analyze(dataset: Path, grid: int = 3) -> dict:
 
 def summarize(result: dict) -> dict:
     """LLM에 넘길 요약본: 시범별 목록과 숙련도 라벨을 빼고 조건별 통계만 남긴다."""
+    from curation_tools.rule_check import compact
     lengths = [d["length"] for d in result["demos"]]
     return {
         "run_id": result["run_id"],
@@ -235,7 +236,7 @@ def summarize(result: dict) -> dict:
         "conditions": [{k: c[k] for k in ("condition", "count", "mean_length", "total_frames")} for c in result["conditions"]],
         "quality_signals": list(QUALITY_SIGNALS),
         "diagnosis": _diag_summary(result.get("diagnosis")),
-        "rule_check": result.get("rule_check"),
+        "rule_check": compact(result.get("rule_check")),
     }
 
 

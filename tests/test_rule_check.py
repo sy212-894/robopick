@@ -42,3 +42,13 @@ def test_no_labels():
 
 def test_reproducible():
     assert check(_demos()) == check(_demos())
+
+
+def test_compact_has_no_label_names():
+    import json
+    from curation_tools.rule_check import compact
+    c = compact(check(_demos()))
+    text = json.dumps(c)
+    assert c["verdict"] == "통과" and c["skilled_share"]["top"] > c["skilled_share"]["bottom"]
+    assert "better" not in text and "worse" not in text and "signals" not in c
+    assert compact(check(_demos(labels=False)))["verdict"] == "점검 불가"

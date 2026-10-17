@@ -70,3 +70,12 @@ def check(demos: list[dict], seed: int = 0) -> dict:
     return {"status": "checked", "verdict": verdict, "rule": RULE, "n_labeled": len(labeled),
             "score_spearman": rho, "ci95": ci, "halves": halves, "signals": signals,
             "note": note + ". 학습이 나아지는지는 학습 실험으로만 확인됩니다"}
+
+
+def compact(rc: dict | None) -> dict | None:
+    """LLM에 넘기는 요약본용: 라벨 이름과 신호별 결과를 빼고 판정과 숫자만 (전체는 analysis.json에)."""
+    if not rc or rc.get("status") != "checked":
+        return rc and {k: rc[k] for k in ("status", "verdict", "note")}
+    h = rc["halves"]
+    return {"status": "checked", "verdict": rc["verdict"], "n_labeled": rc["n_labeled"], "score_spearman": rc["score_spearman"],
+            "ci95": rc["ci95"], "skilled_share": {"top": h["top"]["better"], "bottom": h["bottom"]["better"]}, "note": rc["note"]}
