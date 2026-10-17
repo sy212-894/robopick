@@ -1,0 +1,132 @@
+{
+ "built_at": "2026-10-17T12:46:45",
+ "rule": "전체 대비 하락 5%p 이내가 확인된 가장 작은 개수 → 없으면 무작위보다 높다고 확인된 가장 큰 개수 → 없으면 추천 없음 (주 판정 기준, 2026-10-17 예산 60 2차 결과 전에 정함)",
+ "max_drop": 0.05,
+ "rows": [
+  {
+   "dataset": "can_mh",
+   "budget": 60,
+   "experiment": "예산 60 1차 (docs/12)",
+   "source": "R-20261013-select-b60/results/results_paired_round1.json",
+   "gain_vs_random": {
+    "diff": 0.21,
+    "ci95": [
+     0.139,
+     0.281
+    ],
+    "verdict": "차이 있음 (높음)",
+    "n_seeds": 3
+   },
+   "drop_vs_full": {
+    "diff": 0.0233,
+    "ci95": [
+     -0.0424,
+     0.089
+    ],
+    "verdict": "구분 불가",
+    "n_seeds": 3,
+    "confirmed": false
+   }
+  },
+  {
+   "dataset": "can_mh",
+   "budget": 135,
+   "experiment": "예산 135 (docs/09)",
+   "source": "R-20261012-select-b135/results/results_paired_combined.json",
+   "gain_vs_random": {
+    "diff": 0.0533,
+    "ci95": [
+     0.0022,
+     0.1045
+    ],
+    "verdict": "구분 불가",
+    "n_seeds": 3
+   },
+   "drop_vs_full": {
+    "diff": -0.13,
+    "ci95": [
+     -0.1907,
+     -0.0693
+    ],
+    "verdict": "구분 불가",
+    "n_seeds": 3,
+    "confirmed": true
+   }
+  },
+  {
+   "dataset": "can_mh",
+   "budget": 150,
+   "experiment": "본 실험 150 (docs/07, 11)",
+   "source": "R-20261011-select-main/results/results_paired.json",
+   "gain_vs_random": {
+    "diff": 0.1367,
+    "ci95": [
+     0.064,
+     0.2094
+    ],
+    "verdict": "구분 불가",
+    "n_seeds": 3
+   },
+   "drop_vs_full": {
+    "diff": -0.0267,
+    "ci95": [
+     -0.092,
+     0.0387
+    ],
+    "verdict": "구분 불가",
+    "n_seeds": 3,
+    "confirmed": true
+   },
+   "extra": {
+    "label": "추가 분석 · 학습 시드 5개 짝지은 비교 (같은 위치 100개, 규칙은 결과 보기 전에 정함)",
+    "source": "R-20261011-select-main/results/results_paired_seeds.json",
+    "gain_vs_random": {
+     "diff": 0.2,
+     "ci95": [
+      0.1445,
+      0.2555
+     ],
+     "verdict": "차이 있음 (높음)",
+     "n_seeds": 5,
+     "note": "시드 5개 중 4개에서 선별이 높음. 규칙: 신뢰구간 0 위 + 4개 이상 높음"
+    },
+    "drop_vs_full": {
+     "diff": -0.122,
+     "ci95": [
+      -0.372,
+      0.058
+     ],
+     "verdict": "하락 기준 미충족",
+     "n_seeds": 5,
+     "confirmed": false,
+     "note": "시드+위치 신뢰구간 위쪽 끝 +5.8%p (기준 +5%p 이하)"
+    }
+   }
+  },
+  {
+   "dataset": "square_mh",
+   "budget": 150,
+   "experiment": "Square 150 (docs/06)",
+   "source": "R-20261012-square-select",
+   "gain_vs_random": {
+    "diff": 0.1067,
+    "ci95": [
+     0.0049,
+     0.2085
+    ],
+    "verdict": "차이 있음 (높음)",
+    "n_seeds": 3
+   },
+   "drop_vs_full": {
+    "diff": -0.0867,
+    "ci95": [
+     -0.1793,
+     0.0059
+    ],
+    "verdict": "구분 불가",
+    "n_seeds": 3,
+    "confirmed": true
+   }
+  }
+ ]
+}
