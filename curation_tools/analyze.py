@@ -235,6 +235,7 @@ def summarize(result: dict) -> dict:
         "conditions": [{k: c[k] for k in ("condition", "count", "mean_length", "total_frames")} for c in result["conditions"]],
         "quality_signals": list(QUALITY_SIGNALS),
         "diagnosis": _diag_summary(result.get("diagnosis")),
+        "rule_check": result.get("rule_check"),
     }
 
 
@@ -284,6 +285,8 @@ def run(dataset: Path, out_root: Path = DEFAULT_OUT_ROOT, grid: int = 3, run_id:
     out = out_root / run_id
     out.mkdir(parents=True, exist_ok=True)
     result = {"run_id": run_id, "created_at": dt.datetime.now().isoformat(timespec="seconds"), **analyze(dataset, grid)}
+    from curation_tools.rule_check import check  # select_demos가 이 모듈을 불러 순환을 피한다
+    result["rule_check"] = check(result["demos"])
     (out / "analysis.json").write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
     (out / "analysis_summary.json").write_text(json.dumps(summarize(result), ensure_ascii=False, indent=1), encoding="utf-8")
     plot_positions(result, out / "initial_positions.png")
