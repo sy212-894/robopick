@@ -26,7 +26,7 @@ import numpy as np
 
 DEFAULT_OUT_ROOT = Path("C:/curation-data/runs")
 QUALITY_LEVELS = ("worse", "okay", "better")
-QUALITY_SIGNALS = ("path_length", "action_roughness", "idle_ratio", "gripper_switches")
+QUALITY_SIGNALS = ("path_length", "action_roughness", "idle_ratio", "gripper_switches")  # 숙련도와의 관계를 확인한 후보 신호 (선별에 쓰는 신호는 select_demos.SCORE_SIGNALS)
 OBJECT_LABEL = {"PickPlaceCan": "캔", "NutAssemblySquare": "너트", "Lift": "큐브"}  # 환경 이름 → 그림·설명에 쓸 물체 이름
 DUP_THRESHOLD_M = 0.02  # 궤적 20점 평균 거리 2cm 미만 = 거의 같은 시범 (Can·Square 학습 후보에는 0쌍, 가장 가까운 쌍 약 3cm)
 PATH_POINTS = 20
@@ -227,6 +227,7 @@ def analyze(dataset: Path, grid: int = 3) -> dict:
 def summarize(result: dict) -> dict:
     """LLM에 넘길 요약본: 시범별 목록과 숙련도 라벨을 빼고 조건별 통계만 남긴다."""
     from curation_tools.rule_check import compact
+    from curation_tools.select_demos import SCORE_SIGNALS
     lengths = [d["length"] for d in result["demos"]]
     return {
         "run_id": result["run_id"],
@@ -234,7 +235,7 @@ def summarize(result: dict) -> dict:
         "length": {"min": int(min(lengths)), "mean": round(float(np.mean(lengths)), 1), "max": int(max(lengths))},
         "condition_definition": result["condition_definition"],
         "conditions": [{k: c[k] for k in ("condition", "count", "mean_length", "total_frames")} for c in result["conditions"]],
-        "quality_signals": list(QUALITY_SIGNALS),
+        "quality_signals": list(SCORE_SIGNALS),  # 선별 품질 점수에 실제로 쓰는 신호 (동작 거칠기는 숙련도와 관계없어 제외)
         "diagnosis": _diag_summary(result.get("diagnosis")),
         "rule_check": compact(result.get("rule_check")),
     }

@@ -472,20 +472,6 @@ workflow:
         isInLoop: false
         iteration_id: null
         loop_id: null
-        sourceType: if-else
-        targetType: answer
-      id: route2-false-ans_rev
-      source: route2
-      sourceHandle: 'false'
-      target: ans_rev
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInIteration: false
-        isInLoop: false
-        iteration_id: null
-        loop_id: null
         sourceType: tool
         targetType: answer
       id: kit-fail-branch-ans_toolfail
@@ -528,12 +514,82 @@ workflow:
         isInLoop: false
         iteration_id: null
         loop_id: null
-        sourceType: llm
+        sourceType: if-else
         targetType: answer
-      id: report-source-ans_ok
+      id: route2-false-ans_selnone
+      source: route2
+      sourceHandle: 'false'
+      target: ans_selnone
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: llm
+        targetType: code
+      id: report-source-rep_clean
       source: report
       sourceHandle: source
+      target: rep_clean
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: code
+        targetType: answer
+      id: rep_clean-source-ans_ok
+      source: rep_clean
+      sourceHandle: source
       target: ans_ok
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: tool
+        targetType: answer
+      id: log_ok-fail-branch-ans_toolfail
+      source: log_ok
+      sourceHandle: fail-branch
+      target: ans_toolfail
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: tool
+        targetType: answer
+      id: log_no-fail-branch-ans_toolfail
+      source: log_no
+      sourceHandle: fail-branch
+      target: ans_toolfail
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: tool
+        targetType: answer
+      id: res-fail-branch-ans_toolfail
+      source: res
+      sourceHandle: fail-branch
+      target: ans_toolfail
       targetHandle: target
       type: custom
       zIndex: 0
@@ -574,6 +630,8 @@ workflow:
 
             - 근거 출처는 자료에 문서 제목이나 URL이 있을 때만 적고, 없으면 생략한다.
 
+            코드 블록(```)과 표를 쓰지 않는다. 줄글과 짧은 목록만 쓴다.
+
             형식: 요약 1문장 / 선별 결과 핵심 수치 3~5줄 / 다음 단계 1줄(학습 키트로 자기 환경에서 학습한 뒤 결과 파일을 올리면
             판정) / 근거 출처(있으면).
 
@@ -590,7 +648,7 @@ workflow:
 
             [선별과 검수]
 
-            {{#plan.plan_md#}}
+            {{#plan.brief#}}
 
 
             [학습 키트 상태]
@@ -608,6 +666,11 @@ workflow:
         type: llm
         vision:
           enabled: false
+        error_strategy: default-value
+        default_value:
+        - key: text
+          type: string
+          value: 보고 문장을 만들지 못했습니다 (언어 모델 오류). 선별·검수·학습 키트는 정상으로 만들어졌으니 아래를 참고해 주세요.
       height: 87
       id: report
       position:
@@ -682,6 +745,7 @@ workflow:
             type: mixed
             value: approval
         type: tool
+        error_strategy: fail-branch
       height: 83
       id: log_ok
       position:
@@ -726,6 +790,7 @@ workflow:
             type: mixed
             value: approval
         type: tool
+        error_strategy: fail-branch
       height: 83
       id: log_no
       position:
@@ -972,21 +1037,33 @@ workflow:
       width: 241
       zIndex: 0
     - data:
-        code: "def main(review: list, sel: list) -> dict:\n    r = review[0] if review\
-          \ else {}\n    s = sel[0] if sel else {}\n    verdict = r.get(\"verdict\"\
-          , \"none\")\n    issues = r.get(\"issues\", []) + r.get(\"warnings\", [])\n\
-          \    issues_md = \"\\n\".join(f\"- {i['check']}: {i['detail']}\" for i in\
-          \ issues) or \"- 없음\"\n    plan_md = \"\"\n    if verdict in (\"pass\",\
-          \ \"revise\"):\n        sets = r.get(\"sets\", {})\n        rows = \"\\\
-          n\".join(f\"| {k} | {v['n_demos']} | {v['total_frames']:,} |\" for k, v\
-          \ in sets.items())\n        ts = r.get(\"train_set\", {})\n        plan_md\
-          \ = (\n            f\"**선별 결과** run_id `{r.get('run_id')}` (데이터 {r.get('dataset',\
-          \ 'can_mh')}, {r.get('budget')}개, 개수 {s.get('budget_basis', '요청')})\\n\\\
-          n\"\n            f\"| 묶음 | 시범 수 | 총 프레임 |\\n|---|---|---|\\n{rows}\\n| train\
-          \ (전체) | {ts.get('n_demos', '-')} | {ts.get('total_frames', 0):,} |\\n\\\
-          n\"\n            f\"**검수 결과**: {verdict}\\n{issues_md}\"\n        )\n  \
-          \  return {\"verdict\": verdict, \"run_id\": r.get(\"run_id\") or \"\",\
-          \ \"plan_md\": plan_md, \"issues_md\": issues_md}\n"
+        code: "import re\n\n\ndef main(review: list, sel: list, sel_text: str = \"\
+          \") -> dict:\n    r = review[0] if review else {}\n    s = sel[0] if sel\
+          \ else {}\n    verdict = r.get(\"verdict\", \"none\")\n    issues = r.get(\"\
+          issues\", []) + r.get(\"warnings\", [])\n    issues_md = \"\\n\".join(f\"\
+          - {i['check']}: {i['detail']}\" for i in issues) or \"- 없음\"\n    plan_md\
+          \ = \"\"\n    if verdict in (\"pass\", \"revise\"):\n        sets = r.get(\"\
+          sets\", {})\n        rows = \"\\n\".join(f\"| {k} | {v['n_demos']} | {v['total_frames']:,}\
+          \ |\" for k, v in sets.items())\n        ts = r.get(\"train_set\", {})\n\
+          \        plan_md = (\n            f\"**선별 결과** run_id `{r.get('run_id')}`\
+          \ (데이터 {r.get('dataset', 'can_mh')}, {r.get('budget')}개, 개수 {s.get('budget_basis',\
+          \ '요청')})\\n\\n\"\n            f\"| 묶음 | 시범 수 | 총 프레임 |\\n|---|---|---|\\\
+          n{rows}\\n| train (전체) | {ts.get('n_demos', '-')} | {ts.get('total_frames',\
+          \ 0):,} |\\n\\n\"\n            f\"**검수 결과**: {verdict}\\n{issues_md}\"\n\
+          \        )\n    brief = \"\"\n    if verdict in (\"pass\", \"revise\"):\n\
+          \        sets = r.get(\"sets\", {})\n        cur = next((v for k, v in sets.items()\
+          \ if k.startswith(\"curated\")), {})\n        ts = r.get(\"train_set\",\
+          \ {})\n        brief = (f\"데이터 {r.get('dataset', 'can_mh')}, 선별 {cur.get('n_demos',\
+          \ r.get('budget'))}개 (총 {cur.get('total_frames', 0):,} 프레임), \"\n      \
+          \           f\"전체 {ts.get('n_demos', '-')}개 (총 {ts.get('total_frames', 0):,}\
+          \ 프레임), 개수 근거 {s.get('budget_basis', '요청')}, \"\n                 f\"비교용\
+          \ 무작위 묶음 함께 만듦, 검수 {verdict}\")\n    else:\n        # 선별 도구가 오류를 돌려주면 Dify는\
+          \ 노드를 성공으로 처리한다 → 선별 결과가 없어 검수 판정이 none. 도구가 준 이유를 그대로 보여 준다\n        why\
+          \ = re.sub(r\"^Error executing tool \\w+:\\s*\", \"\", (sel_text or \"\"\
+          ).strip())\n        issues_md = f\"이유: {why[:300]}\" if why else \"선별 결과가\
+          \ 없습니다. 고를 개수(10~선별 후보 수)를 확인해 다시 요청해 주세요.\"\n    return {\"verdict\": verdict,\
+          \ \"run_id\": r.get(\"run_id\") or \"\", \"plan_md\": plan_md, \"issues_md\"\
+          : issues_md, \"brief\": brief}\n"
         code_language: python3
         outputs:
           issues_md:
@@ -1001,6 +1078,9 @@ workflow:
           verdict:
             children: null
             type: string
+          brief:
+            children: null
+            type: string
         selected: false
         title: 검수 결과 정리
         type: code
@@ -1013,6 +1093,10 @@ workflow:
           - sel
           - json
           variable: sel
+        - value_selector:
+          - sel
+          - text
+          variable: sel_text
       height: 51
       id: plan
       position:
@@ -1070,6 +1154,11 @@ workflow:
         type: llm
         vision:
           enabled: false
+        error_strategy: default-value
+        default_value:
+        - key: text
+          type: string
+          value: robomimic multi-human demonstration curation
       height: 131
       id: translate
       position:
@@ -1294,6 +1383,11 @@ workflow:
         selected: false
         title: 근거 검색
         type: knowledge-retrieval
+        error_strategy: default-value
+        default_value:
+        - key: result
+          type: array[object]
+          value: []
       height: 149
       id: retrieval
       position:
@@ -1595,10 +1689,10 @@ workflow:
 
           ---
 
-          **{{#confirm.budget#}}개로 골랐습니다.**
+          **{{#kit_md.head#}}**
 
 
-          {{#report.text#}}
+          {{#rep_clean.text#}}
 
 
           ---
@@ -1612,10 +1706,10 @@ workflow:
       height: 138
       id: ans_ok
       position:
-        x: 5740
+        x: 6040
         y: 300
       positionAbsolute:
-        x: 5740
+        x: 6040
         y: 300
       selected: false
       sourcePosition: null
@@ -1684,29 +1778,19 @@ workflow:
           closest_m\")\n    closest_txt = f\", 가장 가까운 쌍 {closest * 100:.1f}cm\" if\
           \ isinstance(closest, (int, float)) else \"\"\n    lines.append(f\"- 거의\
           \ 같은 시범(궤적 평균 거리 2cm 미만): {n_dup}쌍{closest_txt}\")\n    lines.append(\"\"\
-          )\n    rl = rule_line(p.get(\"rule_check\"))\n    if rl:\n        lines\
-          \ += [rl, \"\"]\n    if rec.get(\"budget\"):\n        lines.append(f\"**추천\
-          \ 개수 {rec['budget']}개**: {rec.get('reason')}\")\n    else:\n        lines.append(f\"\
-          **추천 개수 없음**: {rec.get('reason')}\")\n    lk = p.get(\"lookup\") or {}\n\
-          \    default = p.get(\"default_budget\")\n    if p.get(\"requested\"):\n\
-          \        lines.append(f\"- 요청한 개수 {p['requested']}개를 기본값으로 넣었습니다\")\n  \
-          \  if lk.get(\"status\") == \"tested\":\n        lines.append(f\"- {default}개는\
-          \ 학습 실험으로 확인한 개수입니다\")\n    elif lk.get(\"status\") == \"not_tested\":\n\
-          \        near = \", \".join(f\"{r['budget']}개\" for r in lk.get(\"rows\"\
-          , []))\n        lines.append(f\"- {default}개는 학습 실험으로 확인하지 않은 개수입니다. 가까운\
-          \ 실험: {near}\")\n    else:\n        lines.append(f\"- 이 데이터는 학습 실험 결과가 없어\
-          \ 근거가 없습니다\")\n    return {\"status\": \"pending\", \"run_id\": p.get(\"\
-          run_id\", \"\"), \"dataset\": p.get(\"dataset\", \"\"),\n            \"\
-          default_budget\": str(default), \"diag_md\": \"\\n\".join(lines), \"plan_md\"\
-          : \"\\n\".join(lines)}\n\n\ndef rule_line(rc):\n    if not rc:\n       \
-          \ return \"\"\n    if rc.get(\"status\") != \"checked\":\n        return\
-          \ f\"**규칙 점검: 점검 불가**: {rc.get('note')}\"\n    h = rc.get(\"skilled_share\"\
-          ) or {}\n    top, bot = h.get(\"top\"), h.get(\"bottom\")\n    ci = rc.get(\"\
-          ci95\") or [0, 0]\n    extra = f\" 점수 상위 절반의 숙련자(better) 비율 {top:.0%}, 하위\
-          \ 절반 {bot:.0%}.\" if top is not None else \"\"\n    return (f\"**규칙 점검:\
-          \ {rc['verdict']}** (숙련도 라벨 {rc.get('n_labeled')}개, 품질 점수와 숙련도 순위 상관 \"\n\
-          \            f\"{rc.get('score_spearman')}, 95% 구간 {ci[0]}~{ci[1]}).{extra}\
-          \ {rc.get('note')}\")\n"
+          )\n    if rec.get(\"budget\"):\n        lines.append(f\"**추천 개수 {rec['budget']}개**:\
+          \ {rec.get('reason')}\")\n    else:\n        lines.append(f\"**추천 개수 없음**:\
+          \ {rec.get('reason')}\")\n    lk = p.get(\"lookup\") or {}\n    default\
+          \ = p.get(\"default_budget\")\n    if p.get(\"requested\"):\n        lines.append(f\"\
+          - 요청한 개수 {p['requested']}개를 기본값으로 넣었습니다\")\n    if lk.get(\"status\") ==\
+          \ \"tested\":\n        lines.append(f\"- {default}개는 학습 실험으로 확인한 개수입니다\"\
+          )\n    elif lk.get(\"status\") == \"not_tested\":\n        near = \", \"\
+          .join(f\"{r['budget']}개\" for r in lk.get(\"rows\", []))\n        lines.append(f\"\
+          - {default}개는 학습 실험으로 확인하지 않은 개수입니다. 가까운 실험: {near}\")\n    else:\n    \
+          \    lines.append(f\"- 이 데이터는 학습 실험 결과가 없어 근거가 없습니다\")\n    return {\"status\"\
+          : \"pending\", \"run_id\": p.get(\"run_id\", \"\"), \"dataset\": p.get(\"\
+          dataset\", \"\"),\n            \"default_budget\": str(default), \"diag_md\"\
+          : \"\\n\".join(lines), \"plan_md\": \"\\n\".join(lines)}\n"
         code_language: python3
         outputs:
           status:
@@ -1945,11 +2029,12 @@ workflow:
           \ else {}\n    b = s.get(\"budget\")\n    n_sel = b.get(\"demos\") if isinstance(b,\
           \ dict) else b\n    if k.get(\"status\") != \"ok\":\n        return {\"\
           md\": f\"학습 키트를 만들지 못했습니다: {k.get('detail', k.get('status', '알 수 없음'))}\"\
-          ,\n                \"brief\": \"학습 키트를 만들지 못했다\"}\n    rid = k.get(\"run_id\"\
-          )\n    base = f\"/api/kit/{rid}\"\n    files = k.get(\"kit_files\") or {}\n\
-          \    data = k.get(\"data_file\") or {}\n    lines = [\"## 학습 키트\", \"\"\
-          , \"아래 파일을 받아 Colab, Kaggle 또는 리눅스 GPU 서버에서 노트북을 위에서부터 실행하면 됩니다.\", \"\"\
-          ]\n    if data.get(\"exists\"):\n        lines.append(f\"- [고른 데이터 {data['file']}]({base}/{data['file']})\
+          ,\n                \"brief\": \"학습 키트를 만들지 못했다\", \"head\": f\"{n_sel}개로\
+          \ 골랐습니다\"}\n    rid = k.get(\"run_id\")\n    base = f\"/api/kit/{rid}\"\n\
+          \    files = k.get(\"kit_files\") or {}\n    data = k.get(\"data_file\"\
+          ) or {}\n    lines = [\"## 학습 키트\", \"\", \"아래 파일을 받아 Colab, Kaggle 또는 리눅스\
+          \ GPU 서버에서 노트북을 위에서부터 실행하면 됩니다.\", \"\"]\n    if data.get(\"exists\"):\n\
+          \        lines.append(f\"- [고른 데이터 {data['file']}]({base}/{data['file']})\
           \ ({data.get('size_mb')}MB, 묶음별 필터 키 포함)\")\n    for name in (\"train_curated.ipynb\"\
           , \"train_compare.ipynb\"):\n        f = files.get(name)\n        if f:\n\
           \            mins = k.get('minutes_per_run')\n            t = f\"T4 GPU\
@@ -1982,22 +2067,26 @@ workflow:
           \ · 지금 {c['have']}개 → {c['collect']}개 더\" for c in plan]\n    brief = (f\"\
           사람이 개수를 확정해 {n_sel}개를 골랐고 검수를 통과했다. 학습 키트(데이터, 노트북 2종, 설정)를 만들었다. \"\n \
           \            f\"근거 {'있음' if rows else '없음'}. 수치는 답변 아래 표에 코드가 붙인다. 다음 단계는\
-          \ 사용자가 자기 환경에서 노트북을 실행하고 결과 파일을 올리는 것\")\n    return {\"md\": \"\\n\".join(lines),\
-          \ \"brief\": brief}\n\n\ndef rule_line(rc):\n    if not rc:\n        return\
-          \ \"\"\n    if rc.get(\"status\") != \"checked\":\n        return f\"**규칙\
-          \ 점검: 점검 불가**: {rc.get('note')}\"\n    h = rc.get(\"skilled_share\") or\
-          \ {}\n    top, bot = h.get(\"top\"), h.get(\"bottom\")\n    ci = rc.get(\"\
-          ci95\") or [0, 0]\n    extra = f\" 점수 상위 절반의 숙련자(better) 비율 {top:.0%}, 하위\
-          \ 절반 {bot:.0%}.\" if top is not None else \"\"\n    return (f\"**규칙 점검:\
-          \ {rc['verdict']}** (숙련도 라벨 {rc.get('n_labeled')}개, 품질 점수와 숙련도 순위 상관 \"\n\
-          \            f\"{rc.get('score_spearman')}, 95% 구간 {ci[0]}~{ci[1]}).{extra}\
-          \ {rc.get('note')}\")\n"
+          \ 사용자가 자기 환경에서 노트북을 실행하고 결과 파일을 올리는 것\")\n    basis = s.get(\"budget_basis\"\
+          )\n    return {\"md\": \"\\n\".join(lines), \"brief\": brief, \"head\":\
+          \ f\"{n_sel}개로 골랐습니다\" + (f\" · 개수 근거: {basis}\" if basis else \"\")}\n\n\
+          \ndef rule_line(rc):\n    if not rc:\n        return \"\"\n    if rc.get(\"\
+          status\") != \"checked\":\n        return f\"**규칙 점검: 점검 불가**: {rc.get('note')}\"\
+          \n    h = rc.get(\"skilled_share\") or {}\n    top, bot = h.get(\"top\"\
+          ), h.get(\"bottom\")\n    ci = rc.get(\"ci95\") or [0, 0]\n    extra = f\"\
+          \ 점수 상위 절반의 숙련자(better) 비율 {top:.0%}, 하위 절반 {bot:.0%}.\" if top is not None\
+          \ else \"\"\n    return (f\"**규칙 점검: {rc['verdict']}** (숙련도 라벨 {rc.get('n_labeled')}개,\
+          \ 품질 점수와 숙련도 순위 상관 \"\n            f\"{rc.get('score_spearman')}, 95% 구간\
+          \ {ci[0]}~{ci[1]}).{extra} {rc.get('note')}\")\n"
         code_language: python3
         outputs:
           md:
             children: null
             type: string
           brief:
+            children: null
+            type: string
+          head:
             children: null
             type: string
         selected: false
@@ -2036,7 +2125,11 @@ workflow:
 
           ---
 
-          선별하지 못했습니다. 고를 개수는 10부터 선별 후보 수 사이의 숫자여야 합니다. 개수를 확인해 다시 요청해 주세요.'
+          선별하지 못했습니다. 고를 개수가 10부터 선별 후보 수 사이의 숫자인지 확인해 다시 요청해 주세요. 숫자가 맞다면 도구 서버(curation-tools)가
+          켜져 있는지 확인해 주세요.
+
+
+          (오류 내용: {{#sel.error_message#}})'
         selected: false
         title: 답변 (선별 실패)
         type: answer
@@ -2073,6 +2166,7 @@ workflow:
         tool_parameters:
           session_id: *id001
         type: tool
+        error_strategy: fail-branch
       height: 119
       id: res
       position:
@@ -2081,6 +2175,66 @@ workflow:
       positionAbsolute:
         x: 640
         y: 20
+      selected: false
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#agent_out.output#}}
+
+
+          ---
+
+          선별하지 못했습니다. {{#plan.issues_md#}}'
+        selected: false
+        title: 답변 (선별 결과 없음)
+        type: answer
+        variables: []
+      height: 151
+      id: ans_selnone
+      position:
+        x: 4840
+        y: 820
+      positionAbsolute:
+        x: 4840
+        y: 820
+      selected: false
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: "import re\n\n\ndef main(text: str) -> dict:\n    # 보고 LLM이 지시와 달리 코드\
+          \ 블록이나 표를 지어내는 때가 있다 (2026-10-17 실제 대화 2번). 표·목록은 아래에 코드가 붙이므로 걸러 낸다\n \
+          \   t = re.sub(r\"```.*?(```|$)\", \"\", text or \"\", flags=re.S)\n   \
+          \ lines = [ln for ln in t.splitlines() if not ln.lstrip().startswith(\"\
+          |\") and not re.match(r\"^\\s*#\", ln)]\n    out = re.sub(r\"\\n{3,}\",\
+          \ \"\\n\\n\", \"\\n\".join(lines)).strip()\n    return {\"text\": out or\
+          \ \"선별과 검수를 마치고 학습 키트를 만들었습니다. 학습 키트와 근거는 아래 참고\"}\n"
+        code_language: python3
+        outputs:
+          text:
+            children: null
+            type: string
+        selected: false
+        title: 보고 정리
+        type: code
+        variables:
+        - value_selector:
+          - report
+          - text
+          variable: text
+      height: 51
+      id: rep_clean
+      position:
+        x: 5740
+        y: 300
+      positionAbsolute:
+        x: 5740
+        y: 300
       selected: false
       sourcePosition: null
       targetPosition: null

@@ -118,3 +118,18 @@ def test_notebook_without_original_needs_kit_file():
             "sets": {"curated_100": ["demo_1"], "random_100": ["demo_2"], "train": ["demo_1", "demo_2"]}}
     src = "".join("".join(c["source"]) for c in K.build_notebook(plan, K.kit_jobs(plan, "curated"))["cells"])
     assert "my_data_curated.hdf5" in src and "SystemExit" in src
+
+
+async def test_judge_rejects_bad_outcomes(isolated):
+    async with create_connected_server_and_client_session(srv.mcp._mcp_server) as s:
+        await call(s, "analyze_data", {"session_id": "o"})
+        await call(s, "select_demos", {"budget": 150, "session_id": "o"})
+        await call(s, "review_selection", {"session_id": "o"})
+        _, kit = await call(s, "build_kit", {"session_id": "o"})
+    plan = json.loads((isolated / "runs" / kit["run_id"] / "plan" / "plan.json").read_text(encoding="utf-8"))
+    final = str(plan["config"]["num_epochs"])
+    for bad in ([2, 1, 0], "1,0,1", [-1, 0], [True, False], [0.5, 1]):
+        doc = fake_results(plan, {"curated_150": 0.8})
+        next(iter(doc["runs"].values()))["by_epoch"][final]["outcomes"] = bad
+        with pytest.raises(ValueError, match="성공 1, 실패 0"):
+            J.judge(doc, isolated / "runs")

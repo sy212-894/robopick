@@ -48,6 +48,7 @@ def test_summary_has_no_labels_or_demo_list(tmp_path):
     text = json.dumps(summary)
     assert "demos" not in summary
     assert "worse" not in text and "better" not in text  # LLM에 넘기는 요약에는 숙련도 라벨이 없어야 한다
+    assert summary["quality_signals"] == ["length", "idle_ratio", "path_length", "gripper_switches"]  # 선별에 실제로 쓰는 신호만
     assert (out / "initial_positions.png").stat().st_size > 0
 
 

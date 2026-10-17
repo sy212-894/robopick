@@ -50,6 +50,11 @@ def validate(doc: dict, runs_root: Path) -> dict:
             raise ValueError(f"계획에 없는 묶음: {key}")
         if not ((r.get("by_epoch") or {}).get(final) or {}).get("outcomes"):
             raise ValueError(f"{key}에 {final} epoch 시험별 결과가 없다")
+        for ep, e in (r.get("by_epoch") or {}).items():
+            oc = (e or {}).get("outcomes")
+            # 시험 결과는 성공 1, 실패 0만 (다른 값이 섞이면 성공률이 부풀거나 계산이 깨진다)
+            if not isinstance(oc, list) or not all(type(v) is int and v in (0, 1) for v in oc):
+                raise ValueError(f"{key}의 {ep} epoch 시험 결과가 성공 1, 실패 0의 목록이 아니다")
     return plan
 
 
