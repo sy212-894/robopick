@@ -186,28 +186,3 @@ def test_spa_without_build(tmp_path, monkeypatch):
     monkeypatch.setattr(A, "settings", _settings(tmp_path))
     r = TestClient(A.app).get("/demo")
     assert r.status_code == 404 and "빌드" in r.json()["detail"]
-
-
-def test_kaggle_panel(tmp_path, monkeypatch):
-    """대화의 학습 계획(prepared 이벤트)을 찾아 Kaggle 상태·중단·이어서를 부르고, 중단·이어서는 실행 기록에 남긴다."""
-    monkeypatch.setattr(A, "settings", _settings(tmp_path))
-    (tmp_path / "R-s1").mkdir()
-    ev = tmp_path / "events.jsonl"
-    ev.write_text(json.dumps({"ts": "2026-10-13T10:00:00", "session_id": "s1", "event": "prepared", "run_id": "R-s1"}) + "\n",
-                  encoding="utf-8")
-    calls = []
-    K = A.kaggle.KR
-    monkeypatch.setattr(K, "status", lambda d, r: calls.append(("status", d.name)) or {"status": "running", "done_runs": 1})
-    monkeypatch.setattr(K, "stop", lambda d, r: calls.append(("stop", d.name)) or {"status": "stopping"})
-    monkeypatch.setattr(K, "resume", lambda d, r: (_ for _ in ()).throw(RuntimeError("Kaggle API 오류: x")))
-    monkeypatch.setattr(K, "gpu_left_hours", lambda: {"used": 27.2, "allowed": 30.0, "left": 2.8, "refresh": "z"})
-    c = TestClient(A.app)
-    r = c.get("/api/kaggle/s1").json()
-    assert r["status"] == "running" and r["run_id"] == "R-s1" and r["gpu"]["left"] == 2.8
-    assert c.post("/api/kaggle/s1/stop").json()["status"] == "stopping"
-    assert c.post("/api/kaggle/s1/resume").json()["status"] == "kaggle_error"   # 오류는 실패 대신 상태로
-    assert calls == [("status", "R-s1"), ("stop", "R-s1")]
-    logged = [json.loads(x)["event"] for x in ev.read_text(encoding="utf-8").splitlines()]
-    assert logged == ["prepared", "kaggle_stopping", "kaggle_error"]
-    assert c.get("/api/kaggle/other").json()["status"] == "no_plan"
-    assert c.get("/api/kaggle/bad..id").status_code == 400

@@ -24,7 +24,6 @@ powershell -ExecutionPolicy Bypass -File scripts\start.ps1
 ```
 Dify(Docker, 꺼져 있으면 Docker Desktop부터) → MCP 도구 서버(8800) → 화면 빌드(결과가 없을 때만) → 중계 서버(8900) → 연결 확인 → 브라우저로 http://127.0.0.1:8900 을 연다. 이미 켜진 것은 건너뛴다. 도구 서버와 중계 서버는 최소화된 PowerShell 창에서 돌고, 오류가 나면 그 창에 남는다.
 - 화면 코드를 고쳤으면 `-Build`를 붙인다. 중계 서버가 켜져 있어도 브라우저 새로고침으로 새 빌드가 보인다
-- 승인 뒤 Kaggle GPU 학습까지 하려면 `-Kaggle`을 붙인다 (기본은 계획까지만). 자세한 내용은 `docs/13_kaggle_runner.md`
 - 끄기: `powershell -ExecutionPolicy Bypass -File scripts\stop.ps1` (8800·8900만 끄고 Dify는 둔다)
 
 개발용 (코드를 고치면 화면이 바로 바뀜): 중계 서버를 띄운 상태에서 `web` 폴더에서 `npm run dev` → http://localhost:5173 (`/api`는 8900으로 넘어감)

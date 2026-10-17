@@ -1,7 +1,7 @@
 """Kaggle API 도우미. kaggle 2.x가 깔린 별도 환경(kaggle-cli, 파이썬 3.12)에서 실행된다.
 
 도구 서버(curation 환경, 파이썬 3.10)는 새 토큰을 지원하는 kaggle 1.8+를 설치할 수 없어서, 이 스크립트를
-하위 프로세스로 불러 JSON 한 줄로 결과를 받는다 (kaggle_runner.run_helper). 토큰은 ~/.kaggle/access_token
+하위 프로세스로 불러 JSON 한 줄로 결과를 받는다 (kaggle_api.run_helper, 실험 전용). 토큰은 ~/.kaggle/access_token
 또는 KAGGLE_API_TOKEN 환경 변수에서 kaggle 패키지가 직접 읽는다. 이 스크립트는 토큰 값을 출력하지 않는다.
 
 명령 (python kaggle_helper.py <명령> <JSON 인자>)

@@ -15,7 +15,6 @@ from __future__ import annotations
 import datetime as dt
 import json
 import re
-import subprocess
 import time
 import uuid
 from pathlib import Path
@@ -26,7 +25,6 @@ from mcp.server.transport_security import TransportSecuritySettings
 
 from curation_tools import analyze as A
 from curation_tools import evidence as E
-from curation_tools import kaggle_runner as KR
 from curation_tools import review as R
 from curation_tools import select_demos as S
 from curation_tools import suggest as SG
@@ -299,23 +297,18 @@ def _latest_in_session(session_id: str, event: str, key: str, verdict: str | Non
 
 @mcp.tool()
 def train_evaluate(stage: str, run_id: str | None = None, session_id: str | None = None) -> dict[str, Any]:
-    """학습·평가 단계. 계획을 만들고, Kaggle에서 학습을 실행·확인·중단·재개하고, 결과를 모은다.
+    """학습 계획과 학습 결과. 학습 자체는 하지 않는다 (사용자가 학습 키트로 자기 환경에서 한다).
 
-    stage: "prepare" = 사람이 승인한 선별 결과로 학습 계획(묶음 5개, 같은 설정)을 만든다.
-           "collect" = 학습 결과를 읽어 묶음별 성공률 비교표와 1주차 성공 기준 판정을 돌려준다.
-           "launch" = 승인된 계획을 Kaggle GPU에서 학습한다 (결과가 이미 있거나 다른 학습이 돌거나 GPU가 부족하면 거부).
-           "status" = Kaggle 학습 진행(끝난 실행 수, 경과 시간)을 알려 주고, 끝났으면 결과를 받아 등록한다.
-           "stop" = 실행 중인 Kaggle 학습을 멈춘다 (끝난 실행 결과는 남는다).
-           "resume" = 멈춘 학습을 남은 실행부터 다시 시작한다.
-           launch·resume은 GPU를 쓰므로 사람이 학습 계획을 승인한 뒤에만 부른다.
+    stage: "prepare" = 검수를 통과한 선별 결과로 학습 계획(묶음 5개, 같은 설정)을 만든다.
+           "collect" = 등록된 학습 결과를 읽어 묶음별 성공률 비교표와 1주차 성공 기준 판정을 돌려준다.
     run_id: 선별 결과의 run_id (선택). 없으면 이 대화의 최근 결과를 쓴다
             (prepare는 검수 pass를 받은 최근 선별, collect는 최근에 준비한 계획).
     session_id: 대화 ID.
     학습 설정(알고리즘, epoch, 롤아웃 횟수)은 파일럿으로 정한 값으로 고정되어 있어 바꿀 수 없다.
     """
     _check_session(session_id)
-    if stage not in ("prepare", "collect", "launch", "status", "stop", "resume"):
-        raise ValueError('stage는 prepare, collect, launch, status, stop, resume 중 하나')
+    if stage not in ("prepare", "collect"):
+        raise ValueError('stage는 "prepare" 또는 "collect"')
 
     def work() -> dict:
         target = run_id or None  # Dify에서 빈 값으로 고정해 보내면 이 대화의 최근 결과를 쓴다
@@ -330,16 +323,7 @@ def train_evaluate(stage: str, run_id: str | None = None, session_id: str | None
             write_event({"session_id": session_id, "tool": "train_evaluate", "event": "prepared",
                          "run_id": target, "fingerprint": out["fingerprint"]})
             return out
-        if stage == "collect":
-            return T.collect(run_dir)
-        try:
-            out = {"launch": KR.launch, "status": KR.status, "stop": KR.stop, "resume": KR.resume}[stage](run_dir, RUNS_ROOT)
-        except (RuntimeError, subprocess.TimeoutExpired) as e:  # Kaggle 접속·API 오류는 실패 대신 상태로 알린다
-            return {"status": "kaggle_error", "detail": str(e)[:300]}
-        if out.get("status") in ("launched", "stopping", "resumed", "complete"):
-            write_event({"session_id": session_id, "tool": "train_evaluate", "event": f"kaggle_{out['status']}",
-                         "run_id": target, "detail": out.get("slug") or out.get("detail")})
-        return out
+        return T.collect(run_dir)
 
     return _traced(f"train_evaluate.{stage}", {"run_id": run_id}, session_id, work)
 

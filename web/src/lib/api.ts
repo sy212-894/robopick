@@ -3,7 +3,6 @@
 export type Health = {
   dify: { ok: boolean; detail: string }
   tools: { ok: boolean; detail: string }
-  kaggle?: { launch_enabled: boolean } // 승인 뒤 Kaggle GPU 학습을 실제로 올리는지 (start.ps1 -Kaggle)
 }
 
 export type Overview = {
@@ -129,25 +128,3 @@ export type CheckResult = { verdict: 'pass' | 'check' | 'no_runs'; numbers?: num
 export const postCheck = (sid: string) => postJSON<CheckResult>(`/api/check/${sid}`, {})
 export const getDoc =(file: string) => getJSON<Doc>(`/api/docs/${encodeURIComponent(file)}`)
 
-// Kaggle 학습 패널 (MVP 12). 시작은 Dify 흐름이 승인 뒤에 하고, 웹은 진행 확인·중단·이어서를 맡는다
-export type KaggleGpu = { ok: boolean; used?: number; allowed?: number; left?: number; refresh?: string; detail?: string }
-export type KaggleState = {
-  status: string // running | queued | stopping | stopped | complete | error | not_launched | no_plan | kaggle_error | disabled | no_gpu | busy ...
-  run_id?: string
-  slug?: string
-  url?: string | null
-  done_runs?: number
-  total_runs?: number
-  elapsed_minutes?: number
-  est_minutes?: number
-  left_runs?: number
-  kaggle_status?: string | null
-  failure?: string | null
-  can_stop?: boolean
-  can_resume?: boolean
-  detail?: string
-  launch_enabled?: boolean
-  gpu: KaggleGpu
-}
-export const getKaggle = (sid: string) => getJSON<KaggleState>(`/api/kaggle/${sid}`)
-export const postKaggle = (sid: string, act: 'stop' | 'resume') => postJSON<KaggleState>(`/api/kaggle/${sid}/${act}`, {})
