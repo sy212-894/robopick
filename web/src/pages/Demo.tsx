@@ -662,6 +662,13 @@ function ResultUpload({ sid }: { sid: string }) {
                   </li>
                 ))}
               </ul>
+              {(res.evidence.reproduce ?? []).map((m) => (
+                <p key={`${m.set}-${m.seed}`} className="mt-2 mb-0">
+                  같은 학습 계획·같은 시드의 우리 실험({m.experiment}, 시드 {m.seed}) {m.ours}과 비교: 시험 {m.n}번 중{' '}
+                  <b>{m.same_trials}번 결과가 같음</b>
+                  {m.same_trials === m.n ? ' → 우리 실험을 그대로 재현했습니다' : ''}
+                </p>
+              ))}
             </div>
           )}
           {res.note && <p className="mt-3 mb-0 text-[13px] text-warn-ink">{res.note}</p>}

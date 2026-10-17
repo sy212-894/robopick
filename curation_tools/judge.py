@@ -87,10 +87,44 @@ def judge(doc: dict, runs_root: Path) -> dict:
         out.update(kind="check", title="결과 확인",
                    note="선별 묶음만 학습한 결과라 선별 효과를 판정하지 않습니다. 학습이 제대로 돌았는지 점검하는 수준입니다")
     ev = E.lookup(plan["dataset"]["name"], budget) if budget else {"status": "no_evidence", "rows": []}
-    same = [r for r in ev["rows"] if r.get("source", "").startswith(plan["run_id"] + "/") or r.get("source") == plan["run_id"]]
+    same = [r for r in ev["rows"] if _same_selection(plan, _row_plan(r, runs_root))]
     out["evidence"] = {"status": ev["status"], "same_plan": bool(same),
                        "rows": [{k: r.get(k) for k in ("dataset", "budget", "experiment", "rates", "gain_vs_random", "drop_vs_full")}
-                                for r in ev["rows"]]}
+                                for r in ev["rows"]],
+                       "reproduce": [m for r in same for m in _seed_match(runs, r, runs_root, final)]}
+    return out
+
+
+def _row_plan(row: dict, runs_root: Path) -> dict | None:
+    """근거표 행이 가리키는 실험의 학습 계획 (실행 폴더/plan/plan.json)."""
+    p = runs_root / str(row.get("source", "")).split("/")[0] / "plan" / "plan.json"
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
+
+
+def _same_selection(plan: dict, other: dict | None) -> bool:
+    """고른 시범과 학습 설정이 같은지. 지문은 계획 파일의 평가 횟수(rollout_n)까지 넣어 계산하지만,
+    키트와 한계 보완 실험은 그 값과 상관없이 시험 100회로 평가하므로 비교에서 뺀다."""
+    if not other or other["dataset"]["name"] != plan["dataset"]["name"]:
+        return False
+    cfg = lambda p: {k: v for k, v in p["config"].items() if k != "rollout_n"}
+    common = set(plan["sets"]) & set(other["sets"])
+    return bool(common) and cfg(plan) == cfg(other) and all(sorted(plan["sets"][s]) == sorted(other["sets"][s]) for s in common)
+
+
+def _seed_match(runs: dict, row: dict, runs_root: Path, final: str) -> list[dict]:
+    """같은 계획의 우리 실험에서 같은 묶음·같은 시드 결과와 시험별로 비교한다 (키트가 우리 실험을 그대로 재현하는지)."""
+    p = runs_root / str(row.get("source", ""))
+    if not p.is_file():
+        return []
+    ours = json.loads(p.read_text(encoding="utf-8-sig"))["runs"]
+    out = []
+    for r in runs.values():
+        o = ours.get(f"{r['set']}|seed{r['seed']}")
+        mine = T._outcomes(o, int(final)) if o and "by_epoch" in o else (o or {}).get("outcomes")
+        if mine and len(mine) == len(r["outcomes"]):
+            out.append({"set": r["set"], "seed": r["seed"], "yours": f"{r['success']}/{len(r['outcomes'])}",
+                        "ours": f"{sum(mine)}/{len(mine)}", "same_trials": sum(a == b for a, b in zip(mine, r["outcomes"])),
+                        "n": len(mine), "experiment": row.get("experiment")})
     return out
 
 

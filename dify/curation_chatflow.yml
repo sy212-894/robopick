@@ -1313,8 +1313,13 @@ workflow:
           \ e in rows:\n            rt = e.get(\"rates\") or {}\n            part\
           \ = \", \".join(f\"{names[k]} {v['rate']:.0%}\" for k, v in rt.items() if\
           \ k in names)\n            lines.append(f\"- {e['dataset']} · {e['budget']}개\
-          \ ({e['experiment']}): {part}\")\n        if ev.get(\"same_plan\"):\n  \
-          \          lines.append(\"- 같은 학습 계획으로 우리가 한 실험이라 성공률을 직접 비교할 수 있습니다\")\n\
+          \ ({e['experiment']}): {part}\")\n        for m in ev.get(\"reproduce\"\
+          ) or []:\n            same = \" → 우리 실험을 그대로 재현했습니다\" if m[\"same_trials\"\
+          ] == m[\"n\"] else \"\"\n            lines.append(f\"- 같은 학습 계획·같은 시드의 우리\
+          \ 실험({m.get('experiment')}, 시드 {m['seed']}) {m['ours']}과 비교: \"\n      \
+          \                   f\"시험 {m['n']}번 중 {m['same_trials']}번 결과가 같음{same}\"\
+          )\n        if ev.get(\"same_plan\") and not ev.get(\"reproduce\"):\n   \
+          \         lines.append(\"- 같은 학습 계획으로 우리가 한 실험이라 성공률을 직접 비교할 수 있습니다\")\n\
           \    if r.get(\"note\"):\n        lines += [\"\", r[\"note\"]]\n    return\
           \ {\"md\": \"\\n\".join(lines)}\n"
         code_language: python3

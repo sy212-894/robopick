@@ -147,6 +147,7 @@ export type Judgement = {
   evidence?: {
     status: string
     same_plan: boolean
+    reproduce?: { set: string; seed: number; yours: string; ours: string; same_trials: number; n: number; experiment?: string }[]
     rows: { dataset: string; budget: number; experiment: string; rates: Partial<Record<'curated' | 'random' | 'train', Rate>> }[]
   }
 }
