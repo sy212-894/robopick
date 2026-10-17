@@ -1,5 +1,5 @@
-"""curation-tools MCP 서버: suggest_datasets, analyze_data, recommend_budget, select_demos, review_selection,
-train_evaluate, log_event를 Dify 같은 MCP 클라이언트에 도구로 제공한다.
+"""curation-tools MCP 서버: suggest_datasets, analyze_data, recommend_budget, select_demos, review_selection, build_kit,
+judge_results, train_evaluate, log_event를 Dify 같은 MCP 클라이언트에 도구로 제공한다.
 
 - 주소: http://127.0.0.1:8800/mcp (Dify 컨테이너에서는 http://host.docker.internal:8800/mcp)
 - 도구 인자는 LLM이 정하므로 파일 경로를 직접 받지 않는다. 데이터는 이름(DATASETS, 목록에 있고 내려받은 파일)으로 고르거나
@@ -25,6 +25,8 @@ from mcp.server.transport_security import TransportSecuritySettings
 
 from curation_tools import analyze as A
 from curation_tools import evidence as E
+from curation_tools import judge as J
+from curation_tools import kit as K
 from curation_tools import review as R
 from curation_tools import select_demos as S
 from curation_tools import suggest as SG
@@ -34,6 +36,8 @@ HOST, PORT = "127.0.0.1", 8800
 RAW_ROOT = Path("C:/curation-data/raw")
 UPLOAD_ROOT = Path("C:/curation-data/uploads")  # 웹에서 올린 사용자 파일
 UPLOAD_NAME_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z_.-]{0,100}\.hdf5$")
+RESULT_UPLOAD_ROOT = UPLOAD_ROOT / "results"  # 사용자가 올린 학습 결과 파일
+RESULT_NAME_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z_.-]{0,120}\.json$")
 DATASETS = {"can_mh": RAW_ROOT / "can_mh_low_dim.hdf5", "square_mh": RAW_ROOT / "square_mh_low_dim.hdf5"}
 RUNS_ROOT = A.DEFAULT_OUT_ROOT
 EVENTS_PATH = Path("C:/curation-data/logs/events.jsonl")
@@ -326,6 +330,64 @@ def train_evaluate(stage: str, run_id: str | None = None, session_id: str | None
         return T.collect(run_dir)
 
     return _traced(f"train_evaluate.{stage}", {"run_id": run_id}, session_id, work)
+
+
+@mcp.tool()
+def build_kit(run_id: str | None = None, session_id: str | None = None) -> dict[str, Any]:
+    """검수를 통과한 선별 결과로 학습 키트를 만든다. 사용자가 자기 환경(Colab, Kaggle, 리눅스 서버)에서 학습한다.
+
+    run_id: 선별 결과의 run_id (선택). 없으면 이 대화에서 검수 pass를 받은 최근 선별.
+    반환: 키트 파일 목록(고른 데이터 파일, 학습 설정, 노트북 2종 "선별 데이터로 학습"·"선별·무작위·전체 비교 학습", 사용법),
+    내려받기 주소, 묶음 하나의 예상 학습 시간. 학습 계획이 없으면 먼저 만든다.
+    """
+    _check_session(session_id)
+
+    def work() -> dict:
+        target = run_id or (session_id and _latest_in_session(session_id, "review", "reviewed_run_id", "pass"))
+        if not target:
+            return {"status": "no_target", "detail": "이 대화에 검수를 통과한 선별 결과가 없다"}
+        run_dir = _run_dir(target)
+        if not (run_dir / "plan" / "plan.json").exists():
+            out = T.prepare(run_dir, RUNS_ROOT)
+            write_event({"session_id": session_id, "tool": "build_kit", "event": "prepared",
+                         "run_id": target, "fingerprint": out["fingerprint"]})
+        kit = K.build_kit(run_dir)
+        write_event({"session_id": session_id, "tool": "build_kit", "event": "kit", "run_id": target,
+                     "fingerprint": kit["fingerprint"]})
+        return {"status": "ok", **kit, "download": f"/api/kit/{target}/<파일 이름>"}
+
+    return _traced("build_kit", {"run_id": run_id}, session_id, work)
+
+
+@mcp.tool()
+def judge_results(file_name: str | None = None, session_id: str | None = None) -> dict[str, Any]:
+    """사용자가 학습 키트로 학습한 뒤 올린 결과 파일을 판정한다.
+
+    file_name: 웹에서 올린 결과 파일 이름 (선택). 없으면 이 대화에서 가장 최근에 판정한 결과를 돌려준다.
+    반환: kind "effect"(선별·무작위·전체를 학습한 결과 → 선별 효과 판정: 무작위보다 나은지, 전체 대비 하락 5%p 이내인지)
+    또는 kind "check"(선별만 학습 → 결과 확인: 성공률과 근거표의 비슷한 실험, 판정하지 않음), 묶음별 성공률.
+    """
+    _check_session(session_id)
+
+    def work() -> dict:
+        if file_name:
+            if not RESULT_NAME_RE.match(file_name):
+                raise ValueError("file_name은 올린 결과 파일 이름(영문·숫자·_.-, .json)만 받는다")
+            path = (RESULT_UPLOAD_ROOT / file_name).resolve()
+            if path.parent != RESULT_UPLOAD_ROOT.resolve() or not path.is_file():
+                raise ValueError(f"올린 결과 파일을 찾을 수 없음: {file_name}")
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            res = J.judge(doc, RUNS_ROOT)
+            saved = J.save(doc, res, RUNS_ROOT, session_id)
+            write_event({"session_id": session_id, "tool": "judge_results", "event": "judged", "run_id": res["run_id"],
+                         "kind": res["kind"], "judgement_path": str(saved)})
+            return res
+        last = _latest_in_session(session_id, "judged", "judgement_path") if session_id else None
+        if not last:
+            return {"status": "no_result", "detail": "이 대화에서 올린 학습 결과가 없다. 학습 키트로 학습한 뒤 결과 파일을 올린다"}
+        return json.loads(Path(last).read_text(encoding="utf-8"))
+
+    return _traced("judge_results", {"file_name": file_name}, session_id, work)
 
 
 @mcp.tool()
