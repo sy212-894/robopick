@@ -60,7 +60,7 @@ async def test_kit_then_judge(isolated):
         run_dir = isolated / "runs" / kit["run_id"]
         for f in ("train_curated.ipynb", "train_compare.ipynb", "train_settings.json", "README.txt", "kit.json"):
             assert (run_dir / "kit" / f).exists(), f
-        assert kit["data"]["file"] == "can_mh_curated.hdf5" and kit["data"]["exists"]
+        assert kit["data_file"]["file"] == "can_mh_curated.hdf5" and kit["data_file"]["exists"]
         plan = json.loads((run_dir / "plan" / "plan.json").read_text(encoding="utf-8"))
 
         # 노트북: 환경 판단 셀, 계획, 비교 학습은 선별·무작위·전체 3개, 선별 학습은 1개

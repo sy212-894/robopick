@@ -97,7 +97,7 @@ def test_approve_submits_then_streams_and_final(tmp_path, monkeypatch):
     def handler(req: httpx.Request) -> httpx.Response:
         calls.append((req.method, req.url.path, dict(req.url.params)))
         if req.url.path.endswith("/form/human_input/tok"):
-            assert json.loads(req.content) == {"inputs": {}, "action": "approve", "user": "web-demo"}
+            assert json.loads(req.content) == {"inputs": {"budget": "120"}, "action": "select", "user": "web-demo"}
             return httpx.Response(200, json={})
         if req.url.path.endswith("/workflow/w1/events"):
             return httpx.Response(200, text='data: {"event": "message", "answer": "승인되었습니다"}\n\n'
@@ -108,8 +108,8 @@ def test_approve_submits_then_streams_and_final(tmp_path, monkeypatch):
         return httpx.Response(404)
 
     _mock_dify(monkeypatch, handler)
-    r = TestClient(A.app).post("/api/approve", json={"form_token": "tok", "action": "approve", "workflow_run_id": "w1",
-                                                     "conversation_id": "c1"})
+    r = TestClient(A.app).post("/api/approve", json={"form_token": "tok", "action": "select", "workflow_run_id": "w1",
+                                                     "conversation_id": "c1", "inputs": {"budget": "120"}})
     evs = _sse_events(r.text)
     assert [e["event"] for e in evs] == ["form_submitted", "message", "workflow_finished", "final_message"]
     assert evs[-1]["answer"] == "전체 답변" and evs[-1]["usage"]["total_price"] == "0.0014"
@@ -118,8 +118,11 @@ def test_approve_submits_then_streams_and_final(tmp_path, monkeypatch):
 
 def test_approve_rejects_bad_action(tmp_path, monkeypatch):
     monkeypatch.setattr(A, "settings", _settings(tmp_path, key="app-test"))
-    r = TestClient(A.app).post("/api/approve", json={"form_token": "tok", "action": "maybe", "workflow_run_id": "w1"})
-    assert r.status_code == 400
+    c = TestClient(A.app)
+    assert c.post("/api/approve", json={"action": "select", "workflow_run_id": "w1"}).status_code == 400          # 양식 토큰 없음
+    assert c.post("/api/approve", json={"form_token": "t", "action": 1, "workflow_run_id": "w1"}).status_code == 400
+    assert c.post("/api/approve", json={"form_token": "t", "action": "select", "workflow_run_id": "w1",
+                                        "inputs": {"budget": 120}}).status_code == 400                         # 입력값은 문자열
 
 
 def _write_events(path: Path):

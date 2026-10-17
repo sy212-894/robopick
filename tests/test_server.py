@@ -41,7 +41,7 @@ def events(tmp_path):
 async def test_tools_listed():
     async with create_connected_server_and_client_session(srv.mcp._mcp_server) as s:
         names = {t.name for t in (await s.list_tools()).tools}
-    assert names == {"suggest_datasets", "analyze_data", "recommend_budget", "select_demos", "review_selection", "build_kit", "judge_results",
+    assert names == {"suggest_datasets", "analyze_data", "recommend_budget", "pending_analysis", "select_demos", "review_selection", "build_kit", "judge_results",
                      "train_evaluate", "log_event"}
 
 
@@ -141,3 +141,22 @@ async def test_analyze_rejects_bad_upload_name(name):
     async with create_connected_server_and_client_session(srv.mcp._mcp_server) as s:
         res = await s.call_tool("analyze_data", {"file_name": name})
     assert res.isError
+
+
+async def test_pending_analysis(isolated):
+    """분석 뒤 선별 전에만 pending. 이번 차례 전에 만든 분석으로는 다시 묻지 않는다."""
+    import time
+    async with create_connected_server_and_client_session(srv.mcp._mcp_server) as s:
+        _, none = await call(s, "pending_analysis", {"session_id": "p"})
+        assert none["status"] == "none"
+        t0 = time.time()
+        await call(s, "analyze_data", {"session_id": "p"})
+        _, p = await call(s, "pending_analysis", {"since_ts": t0, "session_id": "p"})
+        assert p["status"] == "pending" and p["default_budget"] == 135 and p["lookup"]["status"] == "tested"
+        _, p100 = await call(s, "pending_analysis", {"budget": 100, "since_ts": t0, "session_id": "p"})
+        assert p100["default_budget"] == 100 and p100["lookup"]["status"] == "not_tested"
+        _, later = await call(s, "pending_analysis", {"since_ts": time.time() + 60, "session_id": "p"})
+        assert later["status"] == "none"              # 다음 차례에는 이전 분석으로 묻지 않는다
+        await call(s, "select_demos", {"budget": 135, "session_id": "p"})
+        _, done = await call(s, "pending_analysis", {"since_ts": t0, "session_id": "p"})
+        assert done["status"] == "none"               # 이미 골랐다

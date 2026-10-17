@@ -1,4 +1,4 @@
-"""curation-tools MCP 서버: suggest_datasets, analyze_data, recommend_budget, select_demos, review_selection, build_kit,
+"""curation-tools MCP 서버: suggest_datasets, analyze_data, recommend_budget, pending_analysis, select_demos, review_selection, build_kit,
 judge_results, train_evaluate, log_event를 Dify 같은 MCP 클라이언트에 도구로 제공한다.
 
 - 주소: http://127.0.0.1:8800/mcp (Dify 컨테이너에서는 http://host.docker.internal:8800/mcp)
@@ -187,6 +187,45 @@ def recommend_budget(dataset: str, budget: int | None = None, session_id: str | 
         return out
 
     return _traced("recommend_budget", {"dataset": dataset, "budget": budget}, session_id, work)
+
+
+def _ts(e: dict) -> float:
+    return dt.datetime.fromisoformat(e["ts"]).timestamp()
+
+
+@mcp.tool()
+def pending_analysis(budget: int = 0, since_ts: float = 0, session_id: str | None = None) -> dict[str, Any]:
+    """이 대화에서 이번 차례(since_ts 이후)에 만든 분석 중 아직 선별하지 않은 것과, 사람이 개수를 정할 때 볼 정보를 돌려준다.
+
+    budget: 사용자가 요청 문장에서 말한 개수 (0이면 말하지 않음).
+    since_ts: 이번 차례가 시작된 시각 (유닉스 초). 이전 차례의 분석으로 개수 확인을 다시 묻지 않게 한다.
+    반환: status "pending"(진단, 추천 개수와 이유, 기본 개수, 기본 개수의 근거) 또는 "none".
+    """
+    _check_session(session_id)
+
+    def work() -> dict:
+        last, picked = None, False
+        if session_id and EVENTS_PATH.exists():
+            for line in EVENTS_PATH.read_text(encoding="utf-8").splitlines():
+                e = json.loads(line)
+                if e.get("session_id") != session_id or e.get("event") != "tool_end":
+                    continue
+                if e.get("tool") == "analyze_data" and e.get("run_id") and _ts(e) >= since_ts - 5:
+                    last, picked = e["run_id"], False
+                elif e.get("tool") == "select_demos" and last:
+                    picked = True
+        if not last or picked:
+            return {"status": "none"}
+        summary = json.loads((_run_dir(last) / "analysis_summary.json").read_text(encoding="utf-8"))
+        name = summary["dataset"]["name"]
+        rec = E.recommend(name)
+        default = budget or rec["budget"] or S.DEFAULT_BUDGET
+        return {"status": "pending", "run_id": last, "dataset": name, "n_candidates": summary["dataset"].get("n_candidates"),
+                "split_note": summary["dataset"].get("split_note"), "diagnosis": summary.get("diagnosis"),
+                "recommend": {k: rec[k] for k in ("budget", "basis", "reason")}, "requested": budget or None,
+                "default_budget": default, "lookup": E.lookup(name, default)}
+
+    return _traced("pending_analysis", {"budget": budget}, session_id, work)
 
 
 @mcp.tool()
