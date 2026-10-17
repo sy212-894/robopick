@@ -223,3 +223,24 @@ def test_kit_download_and_result_upload(tmp_path, monkeypatch):
     ev = [json.loads(x) for x in (tmp_path / "events.jsonl").read_text(encoding="utf-8").splitlines()]
     assert [e["kind"] for e in ev if e["event"] == "judged"] == ["effect", "check"]
     assert not (run / "results" / "results.json").exists()
+
+
+def test_upload_data(tmp_path, monkeypatch):
+    """robomimic hdf5만 받고, 같은 이름은 번호를 붙이고, 아닌 파일은 지운다."""
+    import h5py
+    s = _settings(tmp_path)
+    monkeypatch.setattr(A, "settings", Settings(**{**s.__dict__, "upload_root": tmp_path / "up"}))
+    good = tmp_path / "g.hdf5"
+    with h5py.File(good, "w") as f:
+        f.create_group("data").create_group("demo_0")
+    bad = tmp_path / "b.hdf5"
+    with h5py.File(bad, "w") as f:
+        f.create_group("other")
+    c = TestClient(A.app)
+    r = c.post("/api/data?name=my.hdf5", content=good.read_bytes())
+    assert r.status_code == 200 and r.json()["file_name"] == "my.hdf5" and r.json()["n_demos"] == 1
+    assert c.post("/api/data?name=my.hdf5", content=good.read_bytes()).json()["file_name"] == "my_1.hdf5"
+    assert c.post("/api/data?name=x.hdf5", content=bad.read_bytes()).status_code == 400          # robomimic 아님
+    assert c.post("/api/data?name=t.hdf5", content=b"not hdf5 at all").status_code == 400        # HDF5 아님
+    assert c.post("/api/data?name=../x.hdf5", content=good.read_bytes()).status_code == 400      # 이름 검사
+    assert sorted(p.name for p in (tmp_path / "up").iterdir()) == ["my.hdf5", "my_1.hdf5"]

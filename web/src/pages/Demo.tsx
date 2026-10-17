@@ -326,6 +326,7 @@ export default function Demo() {
                   </button>
                 ))}
               </div>
+              <DataUpload disabled={busy} onUploaded={(name) => setQuery(`내 파일 ${name}에서 학습할 시범 골라줘`)} />
             </section>
 
             {error && (
@@ -784,5 +785,43 @@ function EvidencePanel({ docs }: { docs: Evidence[] }) {
         </>
       )}
     </section>
+  )
+}
+
+// ---------- 내 데이터 올리기: robomimic hdf5를 올리면 요청 문장에 파일 이름을 넣는다 ----------
+
+function DataUpload({ disabled, onUploaded }: { disabled: boolean; onUploaded: (name: string) => void }) {
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const onFile = async (f: File | undefined) => {
+    if (!f) return
+    setMsg(null)
+    if (!f.name.toLowerCase().endsWith('.hdf5')) {
+      setMsg({ ok: false, text: 'robomimic 형식의 .hdf5 파일을 골라 주세요' })
+      return
+    }
+    // 서버는 영문·숫자·_.- 이름만 받는다. 다른 글자는 _로 바꾼다
+    const name = f.name.replace(/\.hdf5$/i, '').replace(/[^0-9A-Za-z_.-]/g, '_').replace(/^[^0-9A-Za-z]+/, '') || 'my_data'
+    setBusy(true)
+    try {
+      const r = await fetch(`/api/data?name=${encodeURIComponent(name + '.hdf5')}`, { method: 'POST', body: f })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j?.detail ?? `올리기 실패 ${r.status}`)
+      setMsg({ ok: true, text: `올림: ${j.file_name} (${j.size_mb}MB, 시범 ${j.n_demos}개). 요청을 보내면 이 파일을 분석합니다` })
+      onUploaded(j.file_name)
+    } catch (e) {
+      setMsg({ ok: false, text: (e as Error).message })
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-3">
+      <label className={`inline-flex h-8 items-center rounded-2xl border border-dashed border-[#b5bdc7] bg-white px-3 text-[13px] text-body ${disabled || busy ? 'opacity-60' : 'cursor-pointer'}`}>
+        {busy ? '올리는 중' : '내 데이터 올리기 (.hdf5)'}
+        <input type="file" accept=".hdf5" className="sr-only" disabled={disabled || busy} onChange={(e) => onFile(e.target.files?.[0])} />
+      </label>
+      {msg && <span role="status" className={`text-[13px] ${msg.ok ? 'text-ok-ink' : 'text-danger'}`}>{msg.text}</span>}
+    </div>
   )
 }

@@ -116,7 +116,7 @@ def recommend(dataset: str, doc: dict | None = None) -> dict:
                 "reason": f"{r['budget']}개에서 선별이 무작위보다 높다고 확인됨 ({r['gain_vs_random']['diff'] * 100:+.1f}%p, "
                           f"{r['experiment']}). 전체 데이터와 비슷한지는 확인되지 않음"}
     return {"budget": None, "basis": None, "row": None,
-            "reason": f"이 데이터는 학습 실험 결과가 없어 추천 개수가 없다. 기본값 {DEFAULT_BUDGET}개를 쓰되 확인된 근거는 없다"}
+            "reason": f"이 데이터는 학습 실험 결과가 없어 추천할 개수가 없습니다. 기본값 {DEFAULT_BUDGET}개를 쓰며, 확인된 근거는 없습니다"}
 
 
 def lookup(dataset: str, budget: int, doc: dict | None = None) -> dict:

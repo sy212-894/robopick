@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 CATALOG_PATH = Path(__file__).resolve().parent / "catalog.json"
@@ -32,9 +33,23 @@ def _type_pref(goal: str) -> str | None:
     return best if hits[best] else None
 
 
+NAMED_FILE = re.compile(r"[0-9A-Za-z][0-9A-Za-z_.-]*\.hdf5")
+
+
 def suggest(goal: str, n: int = 3, catalog: dict | None = None) -> dict:
     cat = catalog or load_catalog()
     g = goal.lower()
+    # 데이터 이름이나 올린 파일 이름을 이미 말했으면 후보를 고르지 않는다 (모델이 이 도구를 잘못 불러도 분석으로 넘어가게)
+    f = NAMED_FILE.search(goal)
+    if f:
+        return {"status": "named", "file_name": f.group(0),
+                "next": f"사용자가 올린 파일을 지정했다. 후보를 고르지 말고 analyze_data(file_name=\"{f.group(0)}\")를 호출한다"}
+    # 한글 조사가 붙어도("lift_mh로") 이름으로 본다: 영문·숫자·_만 이름의 일부로 친다
+    hit = next((d for d in cat["datasets"] if re.search(rf"(?<![a-z0-9_]){d['id']}(?![a-z0-9_])", g)), None)
+    if hit:
+        return {"status": "named", "dataset": hit["id"], "support": hit["support"],
+                "next": (f"사용자가 데이터 {hit['id']}를 지정했다. 후보를 고르지 말고 analyze_data(dataset=\"{hit['id']}\")를 호출한다"
+                         if hit["support"] != "unsupported" else f"{hit['id']}는 이 에이전트가 분석하지 않는 데이터다 ({cat['support_note']['unsupported']})")}
     pref = _type_pref(g)
     scored = []
     for d in cat["datasets"]:
