@@ -403,20 +403,6 @@ workflow:
         iteration_id: null
         loop_id: null
         sourceType: tool
-        targetType: answer
-      id: review-fail-branch-ans_toolfail
-      source: review
-      sourceHandle: fail-branch
-      target: ans_toolfail
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInIteration: false
-        isInLoop: false
-        iteration_id: null
-        loop_id: null
-        sourceType: tool
         targetType: code
       id: review-source-plan
       source: review
@@ -464,20 +450,6 @@ workflow:
       source: route2
       sourceHandle: revise
       target: ans_rev
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInIteration: false
-        isInLoop: false
-        iteration_id: null
-        loop_id: null
-        sourceType: tool
-        targetType: answer
-      id: kit-fail-branch-ans_toolfail
-      source: kit
-      sourceHandle: fail-branch
-      target: ans_toolfail
       targetHandle: target
       type: custom
       zIndex: 0
@@ -558,38 +530,66 @@ workflow:
         loop_id: null
         sourceType: tool
         targetType: answer
-      id: log_ok-fail-branch-ans_toolfail
-      source: log_ok
-      sourceHandle: fail-branch
-      target: ans_toolfail
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInIteration: false
-        isInLoop: false
-        iteration_id: null
-        loop_id: null
-        sourceType: tool
-        targetType: answer
-      id: log_no-fail-branch-ans_toolfail
-      source: log_no
-      sourceHandle: fail-branch
-      target: ans_toolfail
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInIteration: false
-        isInLoop: false
-        iteration_id: null
-        loop_id: null
-        sourceType: tool
-        targetType: answer
-      id: res-fail-branch-ans_toolfail
+      id: res-fail-branch-ans_toolfail_res
       source: res
       sourceHandle: fail-branch
-      target: ans_toolfail
+      target: ans_toolfail_res
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: tool
+        targetType: answer
+      id: log_ok-fail-branch-ans_toolfail_ok
+      source: log_ok
+      sourceHandle: fail-branch
+      target: ans_toolfail_ok
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: tool
+        targetType: answer
+      id: log_no-fail-branch-ans_toolfail_no
+      source: log_no
+      sourceHandle: fail-branch
+      target: ans_toolfail_no
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: tool
+        targetType: answer
+      id: review-fail-branch-ans_toolfail_review
+      source: review
+      sourceHandle: fail-branch
+      target: ans_toolfail_review
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: tool
+        targetType: answer
+      id: kit-fail-branch-ans_toolfail_kit
+      source: kit
+      sourceHandle: fail-branch
+      target: ans_toolfail_kit
       targetHandle: target
       type: custom
       zIndex: 0
@@ -674,10 +674,10 @@ workflow:
       height: 87
       id: report
       position:
-        x: 5440
+        x: 5740
         y: 300
       positionAbsolute:
-        x: 5440
+        x: 5740
         y: 300
       selected: false
       sourcePosition: null
@@ -702,10 +702,10 @@ workflow:
       height: 151
       id: ans_rev
       position:
-        x: 4840
+        x: 5140
         y: 620
       positionAbsolute:
-        x: 4840
+        x: 5140
         y: 620
       selected: false
       sourcePosition: null
@@ -749,10 +749,10 @@ workflow:
       height: 83
       id: log_ok
       position:
-        x: 3340
+        x: 3640
         y: 300
       positionAbsolute:
-        x: 3340
+        x: 3640
         y: 300
       selected: false
       sourcePosition: null
@@ -794,11 +794,11 @@ workflow:
       height: 83
       id: log_no
       position:
-        x: 3340
-        y: 620
+        x: 3640
+        y: 860
       positionAbsolute:
-        x: 3340
-        y: 620
+        x: 3640
+        y: 860
       selected: false
       sourcePosition: null
       targetPosition: null
@@ -1100,10 +1100,10 @@ workflow:
       height: 51
       id: plan
       position:
-        x: 4240
+        x: 4540
         y: 300
       positionAbsolute:
-        x: 4240
+        x: 4540
         y: 300
       selected: false
       sourcePosition: null
@@ -1186,10 +1186,10 @@ workflow:
       height: 135
       id: agent_out
       position:
-        x: 1840
+        x: 2140
         y: 300
       positionAbsolute:
-        x: 1840
+        x: 2140
         y: 300
       selected: false
       sourcePosition: null
@@ -1212,10 +1212,10 @@ workflow:
       height: 149
       id: ans_toolfail
       position:
-        x: 2440
+        x: 2740
         y: 620
       positionAbsolute:
-        x: 2440
+        x: 2740
         y: 620
       selected: false
       sourcePosition: null
@@ -1232,11 +1232,11 @@ workflow:
       height: 131
       id: ans_agentfail
       position:
-        x: 1840
-        y: 820
+        x: 2140
+        y: 860
       positionAbsolute:
-        x: 1840
-        y: 820
+        x: 2140
+        y: 860
       selected: false
       sourcePosition: null
       targetPosition: null
@@ -1253,10 +1253,10 @@ workflow:
       id: ans_result
       position:
         x: 1240
-        y: 20
+        y: -300
       positionAbsolute:
         x: 1240
-        y: 20
+        y: -300
       selected: false
       sourcePosition: null
       targetPosition: null
@@ -1277,11 +1277,11 @@ workflow:
       height: 149
       id: ans_no
       position:
-        x: 3640
-        y: 620
+        x: 3940
+        y: 860
       positionAbsolute:
-        x: 3640
-        y: 620
+        x: 3940
+        y: 860
       selected: false
       sourcePosition: null
       targetPosition: null
@@ -1334,10 +1334,10 @@ workflow:
       id: res_md
       position:
         x: 940
-        y: 20
+        y: -300
       positionAbsolute:
         x: 940
-        y: 20
+        y: -300
       selected: false
       sourcePosition: null
       targetPosition: null
@@ -1426,10 +1426,10 @@ workflow:
       height: 119
       id: review
       position:
-        x: 3940
+        x: 4240
         y: 300
       positionAbsolute:
-        x: 3940
+        x: 4240
         y: 300
       selected: false
       sourcePosition: null
@@ -1446,11 +1446,11 @@ workflow:
       height: 101
       id: ans_plain
       position:
-        x: 3040
-        y: 820
+        x: 3340
+        y: 620
       positionAbsolute:
-        x: 3040
-        y: 820
+        x: 3340
+        y: 620
       selected: false
       sourcePosition: null
       targetPosition: null
@@ -1672,10 +1672,10 @@ workflow:
       height: 223
       id: agent_backup
       position:
-        x: 1540
+        x: 1840
         y: 620
       positionAbsolute:
-        x: 1540
+        x: 1840
         y: 620
       selected: false
       sourcePosition: null
@@ -1706,10 +1706,10 @@ workflow:
       height: 138
       id: ans_ok
       position:
-        x: 6040
+        x: 6340
         y: 300
       positionAbsolute:
-        x: 6040
+        x: 6340
         y: 300
       selected: false
       sourcePosition: null
@@ -1745,10 +1745,10 @@ workflow:
       height: 119
       id: pend
       position:
-        x: 2140
+        x: 2440
         y: 300
       positionAbsolute:
-        x: 2140
+        x: 2440
         y: 300
       selected: false
       sourcePosition: null
@@ -1822,10 +1822,10 @@ workflow:
       height: 51
       id: diag
       position:
-        x: 2440
+        x: 2740
         y: 300
       positionAbsolute:
-        x: 2440
+        x: 2740
         y: 300
       selected: false
       sourcePosition: null
@@ -1852,10 +1852,10 @@ workflow:
       height: 195
       id: route
       position:
-        x: 2740
+        x: 3040
         y: 300
       positionAbsolute:
-        x: 2740
+        x: 3040
         y: 300
       selected: false
       sourcePosition: null
@@ -1902,10 +1902,10 @@ workflow:
       height: 188
       id: confirm
       position:
-        x: 3040
+        x: 3340
         y: 300
       positionAbsolute:
-        x: 3040
+        x: 3340
         y: 300
       selected: false
       sourcePosition: null
@@ -1938,10 +1938,10 @@ workflow:
       height: 119
       id: sel
       position:
-        x: 3640
+        x: 3940
         y: 300
       positionAbsolute:
-        x: 3640
+        x: 3940
         y: 300
       selected: false
       sourcePosition: null
@@ -1979,10 +1979,10 @@ workflow:
       height: 195
       id: route2
       position:
-        x: 4540
+        x: 4840
         y: 300
       positionAbsolute:
-        x: 4540
+        x: 4840
         y: 300
       selected: false
       sourcePosition: null
@@ -2012,10 +2012,10 @@ workflow:
       height: 119
       id: kit
       position:
-        x: 4840
+        x: 5140
         y: 300
       positionAbsolute:
-        x: 4840
+        x: 5140
         y: 300
       selected: false
       sourcePosition: null
@@ -2108,10 +2108,10 @@ workflow:
       height: 51
       id: kit_md
       position:
-        x: 5140
+        x: 5440
         y: 300
       positionAbsolute:
-        x: 5140
+        x: 5440
         y: 300
       selected: false
       sourcePosition: null
@@ -2137,10 +2137,10 @@ workflow:
       height: 101
       id: ans_selfail
       position:
-        x: 3940
+        x: 4240
         y: 620
       positionAbsolute:
-        x: 3940
+        x: 4240
         y: 620
       selected: false
       sourcePosition: null
@@ -2171,10 +2171,10 @@ workflow:
       id: res
       position:
         x: 640
-        y: 20
+        y: -300
       positionAbsolute:
         x: 640
-        y: 20
+        y: -300
       selected: false
       sourcePosition: null
       targetPosition: null
@@ -2195,11 +2195,11 @@ workflow:
       height: 151
       id: ans_selnone
       position:
-        x: 4840
-        y: 820
+        x: 5140
+        y: 860
       positionAbsolute:
-        x: 4840
-        y: 820
+        x: 5140
+        y: 860
       selected: false
       sourcePosition: null
       targetPosition: null
@@ -2230,10 +2230,10 @@ workflow:
       height: 51
       id: rep_clean
       position:
-        x: 5740
+        x: 6040
         y: 300
       positionAbsolute:
-        x: 5740
+        x: 6040
         y: 300
       selected: false
       sourcePosition: null
@@ -2241,8 +2241,138 @@ workflow:
       type: custom
       width: 241
       zIndex: 0
+    - data:
+        answer: '{{#agent_out.output#}}
+
+
+          ---
+
+          도구 서버에 연결할 수 없거나 도구가 실패해 진행하지 못했습니다. 도구 서버(curation-tools)가 켜져 있는지 확인한 뒤
+          다시 요청해 주세요.'
+        selected: false
+        title: '답변 (도구 실패: 학습 결과 판정 조회)'
+        type: answer
+        variables: []
+      height: 149
+      id: ans_toolfail_res
+      position:
+        x: 940
+        y: -120
+      positionAbsolute:
+        x: 940
+        y: -120
+      selected: false
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#agent_out.output#}}
+
+
+          ---
+
+          도구 서버에 연결할 수 없거나 도구가 실패해 진행하지 못했습니다. 도구 서버(curation-tools)가 켜져 있는지 확인한 뒤
+          다시 요청해 주세요.'
+        selected: false
+        title: '답변 (도구 실패: 개수 확정 기록)'
+        type: answer
+        variables: []
+      height: 149
+      id: ans_toolfail_ok
+      position:
+        x: 3940
+        y: 620
+      positionAbsolute:
+        x: 3940
+        y: 620
+      selected: false
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#agent_out.output#}}
+
+
+          ---
+
+          도구 서버에 연결할 수 없거나 도구가 실패해 진행하지 못했습니다. 도구 서버(curation-tools)가 켜져 있는지 확인한 뒤
+          다시 요청해 주세요.'
+        selected: false
+        title: '답변 (도구 실패: 취소 기록)'
+        type: answer
+        variables: []
+      height: 149
+      id: ans_toolfail_no
+      position:
+        x: 3940
+        y: 1100
+      positionAbsolute:
+        x: 3940
+        y: 1100
+      selected: false
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#agent_out.output#}}
+
+
+          ---
+
+          도구 서버에 연결할 수 없거나 도구가 실패해 진행하지 못했습니다. 도구 서버(curation-tools)가 켜져 있는지 확인한 뒤
+          다시 요청해 주세요.'
+        selected: false
+        title: '답변 (도구 실패: 검수)'
+        type: answer
+        variables: []
+      height: 149
+      id: ans_toolfail_review
+      position:
+        x: 4540
+        y: 620
+      positionAbsolute:
+        x: 4540
+        y: 620
+      selected: false
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        answer: '{{#agent_out.output#}}
+
+
+          ---
+
+          도구 서버에 연결할 수 없거나 도구가 실패해 진행하지 못했습니다. 도구 서버(curation-tools)가 켜져 있는지 확인한 뒤
+          다시 요청해 주세요.'
+        selected: false
+        title: '답변 (도구 실패: 학습 키트)'
+        type: answer
+        variables: []
+      height: 149
+      id: ans_toolfail_kit
+      position:
+        x: 5440
+        y: 620
+      positionAbsolute:
+        x: 5440
+        y: 620
+      selected: false
+      sourcePosition: null
+      targetPosition: null
+      type: custom
+      width: 241
+      zIndex: 0
     viewport:
-      x: -499.3141983101832
-      y: 137.85244651241285
-      zoom: 0.9078089633247576
+      x: 0
+      y: 200
+      zoom: 0.45
   rag_pipeline_variables: []
