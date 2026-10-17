@@ -6,7 +6,7 @@
 API
   GET  /api/health                 Dify(키 확인 포함)·도구 서버 연결 상태
   POST /api/chat                   {query, conversation_id?} → Dify 이벤트 실시간 흐름 (SSE)
-  POST /api/approve                {form_token, action, workflow_run_id, conversation_id} → 이어지는 흐름 + final_message
+  POST /api/approve                {form_token, action, workflow_run_id, conversation_id, inputs?} → 이어지는 흐름 + final_message
   GET  /api/message/{대화ID}        마지막 메시지 (답변, 사용량, 근거 문서)
   GET  /api/runs                   실행 기록 목록 (events.jsonl, 대화별 요약)
   GET  /api/runs/{대화ID}           대화의 이벤트 (?download=1이면 원본 JSON 파일로)
@@ -112,10 +112,13 @@ async def approve(request: Request):
     if not settings.dify_api_key:
         return _no_key()
     b = await _body(request)
-    if b.get("action") not in ("approve", "reject") or not b.get("form_token") or not b.get("workflow_run_id"):
-        return JSONResponse({"detail": "form_token, workflow_run_id, action(approve|reject)이 필요합니다"}, status_code=400)
+    # 사람 확인 카드의 버튼 이름(action)과 입력칸 값(inputs, 예: 고를 개수)을 그대로 Dify 양식에 넘긴다
+    inputs = b.get("inputs") or {}
+    if (not isinstance(b.get("action"), str) or not b.get("form_token") or not b.get("workflow_run_id")
+            or not isinstance(inputs, dict) or not all(isinstance(v, str) and len(v) <= 200 for v in inputs.values())):
+        return JSONResponse({"detail": "form_token, workflow_run_id, action, inputs(문자열 값)가 필요합니다"}, status_code=400)
     stream = dify.approve_stream(settings.dify_api_base, settings.dify_api_key, b["form_token"], b["action"],
-                                 b["workflow_run_id"], b.get("conversation_id") or "")
+                                 b["workflow_run_id"], b.get("conversation_id") or "", inputs)
     return StreamingResponse(stream, media_type="text/event-stream", headers=SSE_HEADERS)
 
 

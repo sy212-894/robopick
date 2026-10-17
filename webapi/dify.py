@@ -67,10 +67,10 @@ async def final_message(base: str, key: str, conversation_id: str) -> dict | Non
 
 
 async def approve_stream(base: str, key: str, form_token: str, action: str, workflow_run_id: str,
-                         conversation_id: str) -> AsyncIterator[bytes]:
+                         conversation_id: str, inputs: dict | None = None) -> AsyncIterator[bytes]:
     async with httpx.AsyncClient(timeout=httpx.Timeout(10, read=180)) as c:
         r = await c.post(f"{base}/form/human_input/{form_token}", headers=_headers(key),
-                         json={"inputs": {}, "action": action, "user": WEB_USER})
+                         json={"inputs": inputs or {}, "action": action, "user": WEB_USER})
         if r.status_code != 200:
             yield sse({"event": "error", "status": r.status_code, "message": r.text[:500]})
             return

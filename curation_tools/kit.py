@@ -16,6 +16,9 @@ from curation_tools import train_eval as T
 
 REPO = Path(__file__).resolve().parent.parent
 FINAL_N, EARLY_N = 100, 30  # 1주차 최종 평가 기준 (계획의 rollout_n과 상관없이 고정, 한계 보완 실험과 같음)
+# 묶음 하나(학습 + 평가 130회)의 실측 시간 (분, Kaggle T4). Can: 예산 60 2차 실험(10/17) 실행당 약 35~40분.
+# 다른 데이터는 재지 않았다 (None → "측정 안 됨")
+KIT_MINUTES = {"can_mh": 40}
 KINDS = {
     "curated": {"file": "train_curated.ipynb", "title": "선별 데이터로 학습", "after": "결과 확인 (성공률과 근거표의 비슷한 실험)"},
     "compare": {"file": "train_compare.ipynb", "title": "선별·무작위·전체 비교 학습", "after": "선별 효과 판정 (무작위보다 나은지, 전체 대비 하락 5%p 이내인지)"},
@@ -178,7 +181,7 @@ README = """학습 키트 사용법
 3. 위에서부터 차례로 실행한다. 첫 셀이 환경을 알아서 경로를 맞춘다
 4. 끝나면 결과 폴더(curation_results)의 results_main_{fp}.json을 에이전트 웹 화면에 올린다
 
-학습 설정: train_settings.json (robomimic 설정 항목 이름). 예상 시간: T4 GPU에서 묶음 하나에 약 {minutes}분
+학습 설정: train_settings.json (robomimic 설정 항목 이름). 예상 시간: 묶음 하나에 {minutes}
 주의: 윈도우에서 직접 실행은 보장하지 않는다. 실제 로봇 데이터는 학습은 되지만 노트북이 성공률을 잴 수 없다
 """
 
@@ -194,12 +197,12 @@ def build_kit(run_dir: Path) -> dict:
         (out / info["file"]).write_text(json.dumps(nb, ensure_ascii=False, indent=1), encoding="utf-8")
         files[info["file"]] = {"kind": kind, "title": info["title"], "runs": len(kit_jobs(plan, kind)), "after": info["after"]}
     (out / "train_settings.json").write_text(json.dumps(train_settings(plan), ensure_ascii=False, indent=1), encoding="utf-8")
-    minutes = T.MINUTES_BY_DATASET.get(plan["dataset"]["name"], T.MINUTES_PER_SET)
-    (out / "README.txt").write_text(README.format(data=data_filename(plan), fp=plan["fingerprint"], minutes=minutes), encoding="utf-8")
+    minutes = KIT_MINUTES.get(plan["dataset"]["name"])
+    (out / "README.txt").write_text(README.format(data=data_filename(plan), fp=plan["fingerprint"], minutes=f"T4 GPU 약 {minutes}분 (실측)" if minutes else "측정 안 됨"), encoding="utf-8")
     data = run_dir / data_filename(plan)
     manifest = {"run_id": plan["run_id"], "fingerprint": plan["fingerprint"], "dataset": plan["dataset"]["name"],
-                "files": {**files, "train_settings.json": {"title": "학습 설정"}, "README.txt": {"title": "사용법"}},
-                "data": {"file": data.name, "exists": data.exists(), "size_mb": round(data.stat().st_size / 1e6, 1) if data.exists() else None},
+                "kit_files": {**files, "train_settings.json": {"title": "학습 설정"}, "README.txt": {"title": "사용법"}},
+                "data_file": {"file": data.name, "exists": data.exists(), "size_mb": round(data.stat().st_size / 1e6, 1) if data.exists() else None},
                 "minutes_per_run": minutes, "can_download_original": bool(plan["dataset"].get("hf_path"))}
     (out / "kit.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
     return manifest
