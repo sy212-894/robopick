@@ -41,7 +41,7 @@ def events(tmp_path):
 async def test_tools_listed():
     async with create_connected_server_and_client_session(srv.mcp._mcp_server) as s:
         names = {t.name for t in (await s.list_tools()).tools}
-    assert names == {"suggest_datasets", "analyze_data", "recommend_budget", "select_demos", "review_selection",
+    assert names == {"suggest_datasets", "analyze_data", "recommend_budget", "select_demos", "review_selection", "build_kit", "judge_results",
                      "train_evaluate", "log_event"}
 
 

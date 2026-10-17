@@ -49,12 +49,27 @@ def _cmp(x: dict | None, drop: bool = False) -> dict | None:
 def _row(dataset: str, budget: int, main: str, extra: str | None, name: str, runs: Path) -> dict:
     p = runs / main
     if p.is_dir():  # 짝지은 재평가 파일이 없는 실험(Square)은 collect가 학습 결과로 짝지은 비교를 낸다
-        j = T.collect(p)["judgement"]
+        c = T.collect(p)
+        j = c["judgement"]
         gain, drop = j.get("paired_gain_vs_random") or j.get("gain_vs_random"), j.get("paired_drop_vs_full") or j.get("drop_vs_full")
+        counts = {r["set"]: (r["success"], r["rollouts"]) for r in c.get("table", []) if "success" in r}
     else:
-        rep = T.paired_report(json.loads(p.read_text(encoding="utf-8-sig")))
+        doc = json.loads(p.read_text(encoding="utf-8-sig"))
+        rep = T.paired_report(doc)
         gain, drop = rep.get("gain_vs_random"), rep.get("drop_vs_full")
-    row = {"dataset": dataset, "budget": budget, "experiment": name, "source": main,
+        counts = {}
+        for r in doc["runs"].values():
+            k, n = counts.get(r["set"], (0, 0))
+            counts[r["set"]] = (k + sum(r["outcomes"]), n + len(r["outcomes"]))
+    # 묶음별 성공률 (결과 확인 화면에서 사용자 결과와 나란히 보여 준다). 선별·무작위·전체만
+    rates = {}
+    for role, pick in (("curated", lambda s: s.startswith("curated")),
+                       ("random", lambda s: s.startswith("random_") and s != "random_frames"), ("train", lambda s: s == "train")):
+        hit = next((s for s in sorted(counts) if pick(s)), None)
+        if hit:
+            k, n = counts[hit]
+            rates[role] = {"set": hit, "success": k, "rollouts": n, "rate": round(k / n, 4), "ci95": list(T.wilson(k, n))}
+    row = {"dataset": dataset, "budget": budget, "experiment": name, "source": main, "rates": rates,
            "gain_vs_random": _cmp(gain), "drop_vs_full": _cmp(drop, drop=True)}
     if extra and (runs / extra).exists():
         s = T.seeds_report(json.loads((runs / extra).read_text(encoding="utf-8")))

@@ -14,11 +14,15 @@ API
   GET  /api/results                Can 150 / Can 135 / Square 결과와 판정
   GET  /api/overview               소개 페이지 데이터 (산점도, 품질 신호, 구성)
   GET  /api/docs, /api/docs/{파일}   근거 문서 목록, 원문 링크와 전체 내용
+  GET  /api/kit/{실행ID}/{파일}       학습 키트 파일 내려받기 (노트북 2종, 학습 설정, 사용법, 고른 데이터 파일)
+  POST /api/results/{대화ID}         학습 결과 파일(JSON 본문)을 올려 판정 (선별 효과 판정 또는 결과 확인)
 """
 from __future__ import annotations
 
 import asyncio
+import datetime as dt
 import json
+import re
 
 import httpx
 from starlette.applications import Starlette
@@ -27,6 +31,7 @@ from starlette.responses import FileResponse, JSONResponse, Response, StreamingR
 from starlette.routing import Route
 from starlette.staticfiles import StaticFiles
 
+from curation_tools import judge
 from webapi import data, dify
 from webapi.config import Settings, load
 
@@ -168,6 +173,54 @@ async def doc(request: Request):
     return JSONResponse(d) if d else JSONResponse({"detail": "문서를 찾을 수 없습니다"}, status_code=404)
 
 
+KIT_FILES = ("train_curated.ipynb", "train_compare.ipynb", "train_settings.json", "README.txt", "kit.json")
+SID_RE = re.compile(r"^[0-9A-Za-z_-]{1,80}$")
+RUN_ID_RE = re.compile(r"^R-[0-9A-Za-z_-]{1,60}$")
+MAX_RESULT_BYTES = 20 * 1024 * 1024
+
+
+async def kit_file(request: Request):
+    """학습 키트 파일 내려받기. 정해진 키트 파일과 선별이 만든 데이터 파일(<데이터>_curated.hdf5)만 준다."""
+    run_id, name = request.path_params["run_id"], request.path_params["name"]
+    if not RUN_ID_RE.match(run_id):
+        return JSONResponse({"detail": "잘못된 실행 ID"}, status_code=400)
+    run_dir = settings.runs_root / run_id
+    if name in KIT_FILES:
+        path = run_dir / "kit" / name
+    elif re.fullmatch(r"[0-9A-Za-z_]{1,60}_curated\.hdf5", name):
+        path = run_dir / name
+    else:
+        return JSONResponse({"detail": "키트 파일이 아닙니다"}, status_code=400)
+    if not path.is_file():
+        return JSONResponse({"detail": "파일이 없습니다 (키트를 먼저 만드세요)"}, status_code=404)
+    return FileResponse(path, filename=name)
+
+
+async def upload_result(request: Request) -> JSONResponse:
+    """학습 결과 파일(키트 노트북의 results_main_<지문>.json)을 받아 판정한다. 본문은 파일 내용 그대로 (JSON)."""
+    sid = request.path_params["sid"]
+    if not SID_RE.match(sid):
+        return JSONResponse({"detail": "잘못된 대화 ID"}, status_code=400)
+    raw = await request.body()
+    if len(raw) > MAX_RESULT_BYTES:
+        return JSONResponse({"detail": "결과 파일이 너무 큽니다 (20MB 이하)"}, status_code=413)
+    try:
+        doc = json.loads(raw.decode("utf-8"))
+        res = judge.judge(doc, settings.runs_root)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JSONResponse({"detail": "JSON 파일이 아닙니다"}, status_code=400)
+    except (ValueError, KeyError, TypeError) as e:
+        return JSONResponse({"detail": f"판정할 수 없는 결과 파일입니다: {e}"}, status_code=400)
+    saved = judge.save(doc, res, settings.runs_root, sid)
+    # Dify에서 "학습 결과 보여줘"라고 하면 이 판정을 보여 주도록 도구 서버와 같은 형식으로 기록한다
+    rec = {"ts": dt.datetime.now().isoformat(timespec="milliseconds"), "session_id": sid, "tool": "web", "event": "judged",
+           "run_id": res["run_id"], "kind": res["kind"], "judgement_path": str(saved)}
+    settings.events_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(settings.events_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    return JSONResponse(res)
+
+
 async def spa(request: Request):
     """빌드한 화면이 있으면 그 index.html을 돌려준다 (새로고침해도 /demo 같은 주소가 열리게)."""
     if request.url.path.startswith("/api/"):
@@ -190,6 +243,8 @@ routes = [
     Route("/api/overview", overview),
     Route("/api/docs", docs),
     Route("/api/docs/{name}", doc),
+    Route("/api/kit/{run_id}/{name}", kit_file),
+    Route("/api/results/{sid}", upload_result, methods=["POST"]),
 ]
 app = Starlette(routes=routes)
 if (settings.web_dist / "assets").exists():

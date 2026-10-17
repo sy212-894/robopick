@@ -71,16 +71,16 @@ def prepare(run_dir: Path, runs_root: Path, config: dict | None = None) -> dict:
     sel = json.loads((run_dir / "selection.json").read_text(encoding="utf-8"))
     analysis = json.loads((runs_root / sel["analysis_run_id"] / "analysis.json").read_text(encoding="utf-8"))
     name = analysis["dataset"].get("name", "can_mh")
-    if name not in DATASETS:
-        raise ValueError(f"학습 계획을 만들 수 없는 데이터셋: {name}")
-    config = dict(config or TRAIN_CONFIGS[name])
+    info = DATASETS.get(name) or _catalog_source(name)
+    # 파일럿으로 설정을 정한 데이터(Can, Square)가 아니면 Can 설정을 그대로 쓰고, 그 사실을 결과에 적는다
+    config = dict(config or TRAIN_CONFIGS.get(name, TRAIN_CONFIG))
     sets = {name: s["ids"] for name, s in sel["sets"].items()}
     sets["train"] = sorted((d["id"] for d in analysis["demos"] if d.get("split") == "train"),
                            key=lambda s: int(s.split("_")[1]))
     fp = fingerprint(sets, config, analysis["dataset"]["sha256"])
     plan = {"run_id": sel["run_id"], "analysis_run_id": sel["analysis_run_id"], "fingerprint": fp,
             "created_at": dt.datetime.now().isoformat(timespec="seconds"),
-            "dataset": {"name": name, **DATASETS[name], "sha256": analysis["dataset"]["sha256"]},
+            "dataset": {"name": name, **info, "sha256": analysis["dataset"]["sha256"]},
             "config": config, "order": _order(list(sets)), "sets": sets}
     out = run_dir / "plan"
     out.mkdir(exist_ok=True)
@@ -89,9 +89,17 @@ def prepare(run_dir: Path, runs_root: Path, config: dict | None = None) -> dict:
     return {"run_id": sel["run_id"], "dataset": name, "fingerprint": fp, "status": "prepared",
             "n_sets": len(sets), "order": plan["order"],
             "sets": {k: len(v) for k, v in sets.items()},
-            "config": config, "est_minutes": len(sets) * MINUTES_BY_DATASET[name],
-            "notebook": NOTEBOOKS[name],
+            "config": config, "est_minutes": len(sets) * MINUTES_BY_DATASET.get(name, MINUTES_PER_SET),
+            "notebook": NOTEBOOKS.get(name),
+            "config_note": None if name in TRAIN_CONFIGS else "파일럿으로 학습 설정을 정하지 않은 데이터라 Can 설정을 그대로 썼다",
             "already_trained": (RESULTS_STORE / f"{fp}.json").exists()}
+
+
+def _catalog_source(name: str) -> dict:
+    """목록(catalog.json)에 있는 데이터는 내려받을 경로를, 사용자 파일은 경로 없음(학습 키트의 데이터 파일을 쓴다)."""
+    from curation_tools.suggest import load_catalog
+    hit = next((d for d in load_catalog()["datasets"] if d["id"] == name), None)
+    return {"hf_repo": HF_REPO if hit else None, "hf_path": hit["hf_path"] if hit else None}
 
 
 def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:

@@ -186,3 +186,37 @@ def test_spa_without_build(tmp_path, monkeypatch):
     monkeypatch.setattr(A, "settings", _settings(tmp_path))
     r = TestClient(A.app).get("/demo")
     assert r.status_code == 404 and "빌드" in r.json()["detail"]
+
+
+def test_kit_download_and_result_upload(tmp_path, monkeypatch):
+    """키트 파일은 정해진 이름만 내려준다. 결과 파일을 올리면 판정하고, 대화 기록에 남기고, 우리 실험 결과는 건드리지 않는다."""
+    monkeypatch.setattr(A, "settings", _settings(tmp_path))
+    run = tmp_path / "R-sel1"
+    (run / "kit").mkdir(parents=True)
+    (run / "plan").mkdir()
+    (run / "kit" / "train_curated.ipynb").write_text("{}", encoding="utf-8")
+    (run / "can_mh_curated.hdf5").write_bytes(b"h5")
+    cfg = {"num_epochs": 400, "early_eval_epoch": 200, "seed": 1}
+    plan = {"fingerprint": "fp1", "run_id": "R-sel1", "dataset": {"name": "can_mh"}, "config": cfg,
+            "order": ["curated_150", "random_150", "train"], "sets": {"curated_150": ["d"] * 150, "random_150": ["d"] * 150, "train": ["d"] * 270}}
+    (run / "plan" / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
+    c = TestClient(A.app)
+    assert c.get("/api/kit/R-sel1/train_curated.ipynb").status_code == 200
+    assert c.get("/api/kit/R-sel1/can_mh_curated.hdf5").content == b"h5"
+    assert c.get("/api/kit/R-sel1/plan.json").status_code == 400          # 키트 파일이 아님
+    assert c.get("/api/kit/R-sel1/..%2Fplan%2Fplan.json").status_code in (400, 404)
+    assert c.get("/api/kit/bad/train_curated.ipynb").status_code == 400
+
+    def res(rates):
+        runs = {f"{n}|seed1": {"set": n, "seed": 1, "by_epoch": {"400": {"outcomes": [1] * round(p * 100) + [0] * (100 - round(p * 100))}}}
+                for n, p in rates.items()}
+        return {"fingerprint": "fp1", "run_id": "R-sel1", "mode": "main", "eval_seed": 12345, "policy_seed": "EVAL_SEED+i", "runs": runs}
+
+    r = c.post("/api/results/sid1", content=json.dumps(res({"curated_150": 0.8, "random_150": 0.5, "train": 0.8})))
+    assert r.status_code == 200 and r.json()["kind"] == "effect" and r.json()["gain_vs_random"]["verdict"].startswith("차이 있음")
+    assert c.post("/api/results/sid1", content=json.dumps(res({"curated_150": 0.8}))).json()["kind"] == "check"
+    assert c.post("/api/results/sid1", content=b"not json").status_code == 400
+    assert c.post("/api/results/sid1", content=json.dumps({**res({"curated_150": 0.8}), "fingerprint": "x"})).status_code == 400
+    ev = [json.loads(x) for x in (tmp_path / "events.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert [e["kind"] for e in ev if e["event"] == "judged"] == ["effect", "check"]
+    assert not (run / "results" / "results.json").exists()

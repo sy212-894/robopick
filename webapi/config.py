@@ -37,6 +37,7 @@ class Settings:
     events_path: Path
     web_dist: Path
     kb_dir: Path
+    upload_root: Path = Path("C:/curation-data/uploads")  # 사용자가 올린 파일 (결과 파일은 results/ 아래)
 
 
 def load() -> Settings:
@@ -53,4 +54,5 @@ def load() -> Settings:
         web_dist=Path(env.get("WEB_DIST", "C:/curation-data/web-dist")),
         # 지식베이스(demo-curation-kb)에 올린 원본 문서. 3주차 과제 폴더에 있다
         kb_dir=Path(env.get("KB_DIR", str(REPO.parent / "3주차" / "dify_rag" / "knowledge"))),
+        upload_root=Path(env.get("UPLOAD_ROOT", "C:/curation-data/uploads")),
     )
