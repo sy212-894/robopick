@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import Markdown from '../components/Markdown'
 import { getDoc, postResult, type Judgement } from '../lib/api'
 import { pct, pp, signed } from '../lib/fmt'
@@ -79,7 +79,9 @@ const card = 'rounded-[10px] border border-line bg-white'
 const btnLine = 'h-10 cursor-pointer rounded-md border border-field bg-white px-4 text-sm text-ink'
 
 export default function Demo() {
-  const [query, setQuery] = useState(PRESETS[0].q)
+  // 다른 페이지의 "선별 시작"이 ?q=요청 문장 으로 넘겨줄 수 있다
+  const [params] = useSearchParams()
+  const [query, setQuery] = useState(params.get('q') || PRESETS[0].q)
   const [phase, setPhase] = useState<Phase>('idle')
   const [error, setError] = useState<string | null>(null)
   const [nodes, setNodes] = useState<NodeRow[]>([])
@@ -108,6 +110,12 @@ export default function Demo() {
     return () => clearInterval(id)
   }, [busy])
   useEffect(() => () => abort.current?.abort(), [])
+  // 데이터셋 페이지의 "내 데이터 올리기"는 #upload로 온다. 올리기 칸으로 내려간다
+  useEffect(() => {
+    if (window.location.hash !== '#upload') return
+    const id = setTimeout(() => document.getElementById('upload')?.scrollIntoView({ behavior: 'smooth' }), 50)
+    return () => clearTimeout(id)
+  }, [])
 
   const elapsed = (activeMs + (segStart.current != null ? Date.now() - segStart.current : 0)) / 1000
   const startSeg = () => (segStart.current = Date.now())
@@ -278,9 +286,9 @@ export default function Demo() {
     <main className="bg-paper">
       <div className="mx-auto max-w-[1280px] px-8 pt-8 pb-16">
         <div className="dot-grid mb-6 rounded-[10px] border border-line bg-white px-7 pt-7 pb-6">
-          <h1 className="m-0 text-[28px] font-semibold tracking-tight">데모</h1>
+          <h1 className="m-0 text-[28px] font-bold tracking-tight">선별하기</h1>
           <p className="mt-1.5 text-[15px] text-[#475060]">
-            데이터를 분석해 위치 편중·중복을 진단하고, 실험으로 확인된 개수를 추천합니다. 사람이 개수를 확정하면 학습 전에 좋은 시범을 골라 바로 돌릴 수 있는 학습 키트를 줍니다. 학습은 자기 환경에서 하고, 결과 파일을 올리면 판정합니다.
+            공개 데이터를 고르거나 내 데이터를 올려 요청하세요. 데이터를 분석해 위치 편중·중복을 진단하고, 실험으로 확인된 개수를 추천합니다. 사람이 개수를 확정하면 학습 전에 좋은 시범을 골라 바로 돌릴 수 있는 학습 키트를 줍니다. 학습은 자기 환경에서 하고, 결과 파일을 올리면 판정합니다.
           </p>
         </div>
 
@@ -823,7 +831,7 @@ function DataUpload({ disabled, onUploaded }: { disabled: boolean; onUploaded: (
     }
   }
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-3">
+    <div id="upload" className="mt-3 flex scroll-mt-24 flex-wrap items-center gap-3">
       <label className={`inline-flex h-8 items-center rounded-2xl border border-dashed border-[#b5bdc7] bg-white px-3 text-[13px] text-body ${disabled || busy ? 'opacity-60' : 'cursor-pointer'}`}>
         {busy ? '올리는 중' : '내 데이터 올리기 (.hdf5)'}
         <input type="file" accept=".hdf5" className="sr-only" disabled={disabled || busy} onChange={(e) => onFile(e.target.files?.[0])} />
