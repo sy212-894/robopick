@@ -59,7 +59,7 @@ robomimic Can (여러 사람이 모은 시범 300개, 학습 후보 270개) 기�
 
 ## Dify 채팅플로우
 
-<img width="13282" height="3330" alt="시범데이터 선별 에이전트-whole-workflow" src="https://github.com/user-attachments/assets/6c8e6d79-bdeb-4d02-8753-8e426ac9f02f" />
+<img width="4427" height="1110" alt="dify_workflow_light_small" src="https://github.com/user-attachments/assets/57ea476e-0fd3-4d52-a6c8-e2bc3937e493" />
 
 - 노드 38개: LLM, 에이전트, 도구, 분기, 코드, 사람 입력 노드로 구성
 - 에이전트는 함수 호출 방식으로 `suggest_datasets`, `analyze_data`, `recommend_budget`을 골라 씁니다.
