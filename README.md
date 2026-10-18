@@ -2,11 +2,11 @@
 
 로봇 모방학습용 시범(demonstration) 데이터를 학습 전에 진단하고, 좋은 시범만 골라 학습 키트로 만들어 주는 에이전트입니다. 고른 결과가 정말 나은지는 학습 결과 파일을 올리면 판정해 줍니다.
 
-실전 AI 에이전트 시스템 설계·구축 개인 프로젝트 (8주차 MVP) · 방서영
+실전 AI 에이전트 시스템 설계·구축 개인 프로젝트 (8주차 MVP)
 
 ![RoboPick 소개 화면](docs/images/web_home.png)
 
-## 한눈에 보는 결과
+## 실험 결과 요약
 
 robomimic Can (여러 사람이 모은 시범 300개, 학습 후보 270개) 기준입니다. 학습은 BC-RNN 400 epoch, 시험 100회이고, 같은 시험 위치끼리 짝지어 비교했습니다.
 
@@ -59,7 +59,7 @@ robomimic Can (여러 사람이 모은 시범 300개, 학습 후보 270개) 기�
 
 ## Dify 채팅플로우
 
-![Dify 노드 배치](docs/images/dify_layout.png)
+<img width="13282" height="3330" alt="시범데이터 선별 에이전트-whole-workflow" src="https://github.com/user-attachments/assets/6c8e6d79-bdeb-4d02-8753-8e426ac9f02f" />
 
 - 노드 38개: LLM, 에이전트, 도구, 분기, 코드, 사람 입력 노드로 구성
 - 에이전트는 함수 호출 방식으로 `suggest_datasets`, `analyze_data`, `recommend_budget`을 골라 씁니다.
@@ -125,10 +125,3 @@ conda run -n curation python -m pytest tests -q
 | `scripts/` | 켜기 · 끄기 스크립트 |
 | `docs/` | 단계별 기록 (00~21) |
 | `tests/` | 테스트 |
-
-## 한계
-
-- 학습 실험으로 추천 개수를 확인한 데이터는 Can과 Square뿐입니다. Lift와 사용자가 올린 데이터는 학습 키트의 비교 노트북으로 직접 확인해야 합니다.
-- 품질 신호 4개는 Can에서 정했고 Square, Lift에서도 같은 방향인 것을 확인했지만, 다른 종류의 작업(두 팔, 긴 작업)에서는 아직 확인하지 않았습니다.
-- 시뮬레이션(robosuite)에서만 검증했고 실물 로봇은 범위 밖입니다.
-- 지금은 노트북 한 대에서만 돌며 외부 공개는 하지 않습니다.
