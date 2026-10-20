@@ -104,7 +104,7 @@ powershell -ExecutionPolicy Bypass -File scripts\start.ps1
 - 접속: http://127.0.0.1:8900
 - Dify에는 `dify/curation_chatflow.yml`을 가져오고, MCP 도구 주소는 `http://host.docker.internal:8800/mcp`로 등록합니다.
 
-테스트 (76개)
+테스트 (77개)
 
 ```powershell
 conda run -n curation python -m pytest tests -q
