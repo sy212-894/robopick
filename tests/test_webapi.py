@@ -146,6 +146,34 @@ def test_approve_resubscribes_until_finished(tmp_path, monkeypatch):
     assert evs[-1]["answer"] == "최종 답"  # 저장 전 메시지("끝") 대신 끝 이벤트의 답
 
 
+def test_approve_ignores_old_paused_in_snapshot(tmp_path, monkeypatch):
+    # 첫 구독의 지난 상태에 승인 전 멈춤 이벤트가 들어 있어도 끝으로 보지 않고, 다시 구독해 보고까지 받는다 (2026-10-20 리허설)
+    monkeypatch.setattr(A, "settings", _settings(tmp_path, key="app-test"))
+    monkeypatch.setattr(D.asyncio, "sleep", lambda s: _noop())
+    n = {"events": 0}
+    paused = 'data: {"event": "workflow_paused", "workflow_run_id": "w1", "data": {"id": "p1"}}\n\n'
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        if req.url.path.endswith("/form/human_input/tok"):
+            return httpx.Response(200, json={})
+        if req.url.path.endswith("/workflow/w1/events"):
+            n["events"] += 1
+            if n["events"] == 1:
+                return httpx.Response(200, text=paused)
+            return httpx.Response(200, text=paused + 'data: {"event": "workflow_finished", "data": {"outputs": {"answer": "보고"}}}\n\n')
+        if req.url.path.endswith("/messages"):
+            return httpx.Response(200, json={"data": [{"id": "m1", "answer": "", "status": "normal"}]})
+        return httpx.Response(404)
+
+    _mock_dify(monkeypatch, handler)
+    r = TestClient(A.app).post("/api/approve", json={"form_token": "tok", "action": "select", "workflow_run_id": "w1",
+                                                     "conversation_id": "c1", "inputs": {"budget": "135"}})
+    evs = _sse_events(r.text)
+    assert n["events"] == 2
+    assert [e["event"] for e in evs] == ["form_submitted", "workflow_paused", "workflow_finished", "final_message"]
+    assert evs[-1]["answer"] == "보고"
+
+
 async def _noop():
     return None
 
