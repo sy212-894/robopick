@@ -18,8 +18,9 @@ from collections.abc import AsyncIterator
 import httpx
 
 WEB_USER = "web-demo"
-RESUBSCRIBE = 5  # 승인 뒤 이어지는 흐름 구독 최대 횟수
+RESUBSCRIBE = 10  # 승인 뒤 이어지는 흐름 구독 최대 횟수
 END_EVENTS = {"workflow_finished", "workflow_paused", "error"}
+APPROVE_END_EVENTS = {"workflow_finished", "error"}
 
 
 def _event_key(e: dict) -> str:
@@ -105,7 +106,9 @@ async def approve_stream(base: str, key: str, form_token: str, action: str, work
                     if k in sent:
                         continue
                     sent.add(k)
-                    done = done or e.get("event") in END_EVENTS
+                    # 지난 상태(snapshot)에는 승인 전의 멈춤 이벤트가 다시 들어 있다. 승인 뒤에는 완료·오류만 끝으로 본다
+                    # (멈춤을 끝으로 보면 보고가 나오기 전에 구독을 닫아 빈 답이 나간다, 2026-10-20 리허설에서 확인)
+                    done = done or e.get("event") in APPROVE_END_EVENTS
                     if e.get("event") == "workflow_finished":
                         finished_answer = ((e.get("data") or {}).get("outputs") or {}).get("answer")
                     yield ev
